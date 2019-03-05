@@ -87,6 +87,7 @@ int main(int argc, char* argv[])
             break;
 
         case 'p':
+            fprintf(stderr, "Publishing %s\n", optarg);
             res = vsd_find_desc_by_path(ctx, 0, optarg, &desc);
             if (res) {
                 fprintf(stderr, "Could not use publish path %s: %s\n", optarg, strerror(res));
