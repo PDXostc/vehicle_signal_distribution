@@ -86,22 +86,86 @@ extern int vsd_find_desc_by_id(struct vsd_context* context,
                                        vsd_id_t id,
                                        struct vsd_desc** result);
 
-// Set the value of a signal
-// If the signal descriptor is a string, then a copy of val.data will be made
-// and stored in desc.
+// Set the boolean value of a signal identified by a descriptor.
 //
-// Please note that it is up to the caller to ensure that val is of the same type
-// as the descriptor data type.
+// Desc is returned by vsd_find_desc_by_id() or vsd_find_desc_by_path().
 //
 // Return:
 //  0 - Value set.
 //  EISDIR - Desc points to a branch.
+//  EINVAL - Desc is nil
+//  EINVAL - Desc is not an uint8_t
 //
 // FIXME: Validate that val is legal if desc is enumerated.
 // FIXME: Validate that val is not greater than maximum allowed value, if specified.
 // FIXME: Validate that val is not less than minimum allowed value, if specified.
-extern int vsd_set_value(struct vsd_desc* desc,
-                                 vsd_data_u val);
+
+extern int vsd_set_value_by_desc_boolean(vsd_context_t* context, struct vsd_desc* desc, uint8_t val);
+
+// Set the boolean value of a signal identified by its path.
+// Path is the dot-separated path specified by the Vehicle Signal Specification
+// project (Vehicle.Drivetrain.FuelSystem.TankCapacity).
+//
+// Return:
+//  0 - Value set.
+//  ENOENT - Signal with the given path name cannot be found.
+//  EISDIR - Path refers to a branch.
+//  ENOTDIR - One or more components in the path exist but are not branches.
+//  EINVAL - Path is nil
+//  EINVAL - Signal is not an uint8_t
+extern int vsd_set_value_by_path_boolean(vsd_context_t* context, char* path, uint8_t val);
+
+// Set the boolean value of a signal identified by its numerical signal ID.
+// Signal ID is the unique ID assigned to the signal by the second field
+// in the Vehicle Signal Specification CSV file loaded by vsd_load_from_file().
+//
+// Return:
+//  0 - Value set.
+//  ENOENT - Signal with the given ID cannot be found.
+//  EISDIR - Path refers to a branch.
+//  EINVAL - Signal is not an uint8_t
+extern int vsd_set_value_by_id_boolean(vsd_context_t* context, vsd_id_t id, uint8_t val);
+
+extern int vsd_set_value_by_desc_int8(vsd_context_t* context, struct vsd_desc* desc, int8_t val);
+extern int vsd_set_value_by_path_int8(vsd_context_t* context, char* path, int8_t val);
+extern int vsd_set_value_by_id_int8(vsd_context_t* context, vsd_id_t id, int8_t val);
+
+extern int vsd_set_value_by_desc_uint8(vsd_context_t* context, struct vsd_desc* desc, uint8_t val);
+extern int vsd_set_value_by_path_uint8(vsd_context_t* context, char* path, uint8_t val);
+extern int vsd_set_value_by_id_uint8(vsd_context_t* context, vsd_id_t id, uint8_t val);
+
+extern int vsd_set_value_by_desc_int16(vsd_context_t* context, struct vsd_desc* desc, int16_t val);
+extern int vsd_set_value_by_path_int16(vsd_context_t* context, char* path, int16_t val);
+extern int vsd_set_value_by_id_int16(vsd_context_t* context, vsd_id_t id, int16_t val);
+
+extern int vsd_set_value_by_desc_uint16(vsd_context_t* context, struct vsd_desc* desc, uint16_t val);
+extern int vsd_set_value_by_path_uint16(vsd_context_t* context, char* path, uint16_t val);
+extern int vsd_set_value_by_id_uint16(vsd_context_t* context, vsd_id_t id, uint16_t val);
+
+extern int vsd_set_value_by_desc_int32(vsd_context_t* context, struct vsd_desc* desc, int32_t val);
+extern int vsd_set_value_by_path_int32(vsd_context_t* context, char* path, int32_t val);
+extern int vsd_set_value_by_id_int32(vsd_context_t* context, vsd_id_t id, int32_t val);
+
+extern int vsd_set_value_by_desc_uint32(vsd_context_t* context, struct vsd_desc* desc, uint32_t val);
+extern int vsd_set_value_by_path_uint32(vsd_context_t* context, char* path, uint32_t val);
+extern int vsd_set_value_by_id_uint32(vsd_context_t* context, vsd_id_t id, uint32_t val);
+
+extern int vsd_set_value_by_desc_float(vsd_context_t* context, struct vsd_desc* desc, float val);
+extern int vsd_set_value_by_path_float(vsd_context_t* context, char* path, float val);
+extern int vsd_set_value_by_id_float(vsd_context_t* context, vsd_id_t id, float val);
+
+extern int vsd_set_value_by_desc_double(vsd_context_t* context, struct vsd_desc* desc, double val);
+extern int vsd_set_value_by_path_double(vsd_context_t* context, char* path, double val);
+extern int vsd_set_value_by_id_double(vsd_context_t* context, vsd_id_t id, double val);
+
+extern int vsd_set_value_by_desc_string(vsd_context_t* context, struct vsd_desc* desc, char* data, int len);
+extern int vsd_set_value_by_path_string(vsd_context_t* context, char* path, char* data, int len);
+extern int vsd_set_value_by_id_string(vsd_context_t* context, vsd_id_t id, char* data, int len);
+
+extern int vsd_set_value_by_desc_convert(vsd_context_t* context, struct vsd_desc* desc, char* value);
+extern int vsd_set_value_by_path_convert(vsd_context_t* context, char* path, char* value);
+extern int vsd_set_value_by_id_convert(vsd_context_t* context, vsd_id_t id, char* value);
+
 
 // Set an active context to be used when a signal is received.
 // The context defines signal definitions loaded from a VSS CSV file, callbacks, current
@@ -149,13 +213,16 @@ extern char* vsd_desc_to_path_static(struct vsd_desc* desc);
 // Convert the provided string into a signal data element.
 // The string is converted according to the type specified in 'type'.
 // If conversion cannot be done, a default value is provided.
+// Once this call returns a value installed in res, the result can
+// be used to set the signal value via vsd_set_value().
+//
 // Return -
 //  0 - OK
 //  EINVAL - The data type in 'type' is not supported.
 //
 extern int vsd_string_to_data(vsd_data_type_e type,
-                                      char* str,
-                                      vsd_data_u* res);
+                              char* str,
+                              vsd_data_u* res);
 
 // Publish the signal(s) in desc.
 // If desc is a branch, all signals installed under it will be published atomically.

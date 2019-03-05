@@ -67,8 +67,8 @@ static int _data_type_size[] =
 };
 
 static int vsd_data_copy(vsd_data_u* dst,
-                                 vsd_data_u* src,
-                                 vsd_data_type_e data_type)
+                         vsd_data_u* src,
+                         vsd_data_type_e data_type)
 {
     switch(data_type) {
     case vsd_string:
@@ -175,6 +175,7 @@ static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
         buf += _data_type_size[l_desc->base.data_type];
         buf_sz -= _data_type_size[l_desc->base.data_type];
         *len += _data_type_size[l_desc->base.data_type];
+        LM
         return 0;
 
     case vsd_string:
@@ -251,11 +252,13 @@ static int decode_signal(vsd_context_t* ctx, uint8_t* buf, int buf_sz, int *len,
                                          (vsd_desc_node_t* node, void* _ud) {
                                              int local_len = 0;
                                              vsd_desc_t *tmp_desc = 0;
+                                             RMC_LOG_DEBUG("Decoding child with %d bytes left", local_len);
                                              // Abort recursion if we see an error.
                                              rec_res = decode_signal(ctx, buf, buf_sz, &local_len, &tmp_desc);
 
                                              if (rec_res != 0)
                                                  return 0;
+
                                              *len += local_len;
                                              buf_sz -= local_len;
 
@@ -263,6 +266,7 @@ static int decode_signal(vsd_context_t* ctx, uint8_t* buf, int buf_sz, int *len,
                                          }), 0);
 
         // Return whatever the last result was in the recursion run.
+        RMC_LOG_DEBUG("Got %s back", strerror(rec_res));
         return rec_res;
     }
 
@@ -570,9 +574,9 @@ int vsd_find_desc_by_id(vsd_context_t* context,
 }
 
 int vsd_find_desc_by_path(vsd_context_t* context,
-                                 vsd_desc_t* root_desc,
-                                 char* path,
-                                 vsd_desc_t** result)
+                          vsd_desc_t* root_desc,
+                          char* path,
+                          vsd_desc_t** result)
 {
     char *path_separator = 0;
     vsd_desc_t* loc_res = 0;
@@ -594,30 +598,21 @@ int vsd_find_desc_by_path(vsd_context_t* context,
     // move to the next char after the separator
     // If no separator is found, path_separator == NULL, allowing
     // us to detect end of path
-    if (path_separator) {
-        *path_separator = 0;
-        path_separator++;
-    }
-    if (strcmp(root_desc->name, path)) {
+    if (strncmp(root_desc->name, path, path_separator?path_separator-path:strlen(path))) {
         RMC_LOG_DEBUG("Root element name %s is not start of path %s",
                      root_desc->name,
                      path);
         return ENOENT;
     }
+    if (path_separator)
+        path_separator++;
+
     path = path_separator;
 
     while(path) {
 
         path_separator = strchr(path, '.');
-
-        // If we found a path component separator, nil it out and
-        // move to the next char after the separator
-        // If no separator is found, path_separator == NULL, allowing
-        // us to detect end of path
-        if (path_separator) {
-            *path_separator = 0;
-            path_separator++;
-        }
+        int path_len = path_separator?path_separator-path:strlen(path);
 
         // We have to go deeper into the tree. Is our current
         // descriptor a branch that we can traverse into?
@@ -633,10 +628,10 @@ int vsd_find_desc_by_path(vsd_context_t* context,
         vsd_desc_list_for_each(&((vsd_desc_branch_t*) root_desc)->children,
                                        lambda(uint8_t,
                                               (vsd_desc_node_t* node, void* _ud) {
-                                                  RMC_LOG_DEBUG("Checking wanted %s against child %s",
-                                                               path, node->data->name);
+                                                  RMC_LOG_DEBUG("Checking wanted %*s against child %s",
+                                                                path_len, path, node->data->name);
 
-                                                  if (!strcmp(path, node->data->name)) {
+                                                  if (!strncmp(path, node->data->name, path_len)) {
                                                       RMC_LOG_DEBUG("Got it");
                                                       loc_res = node->data;
                                                       return 0;
@@ -644,12 +639,20 @@ int vsd_find_desc_by_path(vsd_context_t* context,
                                                   return 1; // Not find. Continue
                                               }), 0);
         if (!loc_res) {
-            RMC_LOG_COMMENT("Child %s not found under %s. ENOENT",
-                         path, root_desc->name);
+            RMC_LOG_COMMENT("Child %*s not found under %s. ENOENT",
+                            path_len, path, root_desc->name);
 
             return ENOENT;
         }
         root_desc = loc_res;
+        // If we found a path component separator, nil it out and
+        // move to the next char after the separator
+        // If no separator is found, path_separator == NULL, allowing
+        // us to detect end of path
+        if (path_separator)
+            path_separator++;
+
+
         path = path_separator;
         RMC_LOG_DEBUG("Moving into child %s.", root_desc->name);
     }
@@ -709,20 +712,6 @@ int vsd_desc_init(vsd_context_t* ctx,
     return 0;
 }
 
-
-int vsd_set_value(vsd_desc_t* desc,
-                          vsd_data_u val)
-{
-    if (desc->data_type == vsd_na ||
-        desc->data_type == vsd_stream) {
-        RMC_LOG_WARNING("Illegal data type. %s", vsd_data_type_to_string(desc->data_type));
-        return EISDIR;
-    }
-
-    return vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
-                                 &val,
-                                 desc->data_type);
-}
 
 // result->s is *not* owned by the caller. Use vsd_data_copy()
 // if you need a copy.
@@ -990,4 +979,536 @@ vsd_data_u vsd_max(vsd_desc_t* desc)
         return vsd_data_u_nil;
 
     return ((vsd_desc_leaf_t*) desc)->max;
+}
+
+
+// --
+// -- Set Value functions
+// --
+
+static int _find_and_validate_by_id(vsd_context_t* context,
+                                    vsd_id_t id,
+                                    vsd_data_type_e type,
+                                    vsd_desc_t** desc)
+{
+    int res = 0;
+
+    res = vsd_find_desc_by_id(context, id, desc);
+    if (res)
+        return res;
+
+    if ((*desc)->elem_type == vsd_branch) {
+        RMC_LOG_WARNING("Signal ID %u is a branch", id);
+        return EISDIR;
+    }
+
+    if (type != vsd_na && (*desc)->data_type != type) {
+        RMC_LOG_WARNING("Signal ID %u is %s, not boolean.",
+                        id, vsd_data_type_to_string((*desc)->data_type));
+        return EINVAL;
+    }
+
+    return 0;
+}
+
+static int _find_and_validate_by_desc(vsd_context_t* context,
+                                      vsd_desc_t* desc,
+                                      vsd_data_type_e type)
+{
+    if (desc->elem_type == vsd_branch) {
+        RMC_LOG_WARNING("Signal ID %u is a branch", desc->id);
+        return EISDIR;
+    }
+
+    if (type != vsd_na && desc->data_type != type) {
+        RMC_LOG_WARNING("Signal ID %u is %s, not boolean.",
+                        desc->id, vsd_data_type_to_string(desc->data_type));
+        return EINVAL;
+    }
+
+    return 0;
+}
+
+static int _find_and_validate_by_path(vsd_context_t* context,
+                                      char* path,
+                                      vsd_data_type_e type,
+                                      vsd_desc_t** desc)
+{
+    int res = 0;
+
+    res = vsd_find_desc_by_path(context, 0, path, desc);
+    if (res)
+        return res;
+
+    if ((*desc)->elem_type == vsd_branch) {
+        RMC_LOG_WARNING("Signal ID %u is a branch", (*desc)->id);
+        return EISDIR;
+    }
+
+    if (type != vsd_na && (*desc)->data_type != type) {
+        RMC_LOG_WARNING("Signal ID %u is %s, not boolean.",
+                        (*desc)->id, vsd_data_type_to_string((*desc)->data_type));
+        return EINVAL;
+    }
+    return 0;
+}
+
+// -----
+int vsd_set_value_by_desc_boolean(vsd_context_t* context, vsd_desc_t* desc, uint8_t val)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_boolean);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.b = val;
+    return 0;
+}
+
+
+int vsd_set_value_by_path_boolean(vsd_context_t* context, char* path, uint8_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_boolean, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.b = val;
+    return 0;
+}
+
+
+int vsd_set_value_by_id_boolean(vsd_context_t* context, vsd_id_t id, uint8_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_boolean, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.b = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_int8(vsd_context_t* context, vsd_desc_t* desc, int8_t val)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_int8);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.i8 = val;
+    return 0;
+}
+
+int vsd_set_value_by_path_int8(vsd_context_t* context, char* path, int8_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_int8, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.i8 = val;
+    return 0;
+}
+
+int vsd_set_value_by_id_int8(vsd_context_t* context, vsd_id_t id, int8_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_int8, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.i8 = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_uint8(vsd_context_t* context, vsd_desc_t* desc, uint8_t val)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_uint8);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.u8 = val;
+    return 0;
+}
+
+int vsd_set_value_by_path_uint8(vsd_context_t* context, char* path, uint8_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_uint8, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.u8 = val;
+    return 0;
+}
+
+int vsd_set_value_by_id_uint8(vsd_context_t* context, vsd_id_t id, uint8_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_uint8, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.u8 = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_int16(vsd_context_t* context, vsd_desc_t* desc, int16_t val)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_int16);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.i16 = val;
+    return 0;
+}
+
+int vsd_set_value_by_path_int16(vsd_context_t* context, char* path, int16_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_int16, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.i16 = val;
+    return 0;
+}
+
+int vsd_set_value_by_id_int16(vsd_context_t* context, vsd_id_t id, int16_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_int16, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.i16 = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_uint16(vsd_context_t* context, vsd_desc_t* desc, uint16_t val)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_uint16);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.u16 = val;
+    return 0;
+}
+
+int vsd_set_value_by_path_uint16(vsd_context_t* context, char* path, uint16_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_uint16, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.u16 = val;
+    return 0;
+}
+
+int vsd_set_value_by_id_uint16(vsd_context_t* context, vsd_id_t id, uint16_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_uint16, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.u16 = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_int32(vsd_context_t* context, vsd_desc_t* desc, int32_t val)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_int32);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.i32 = val;
+    return 0;
+}
+
+int vsd_set_value_by_path_int32(vsd_context_t* context, char* path, int32_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_int32, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.i32 = val;
+    return 0;
+}
+
+int vsd_set_value_by_id_int32(vsd_context_t* context, vsd_id_t id, int32_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_int32, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.i32 = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_uint32(vsd_context_t* context, vsd_desc_t* desc, uint32_t val)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_uint32);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.u32 = val;
+    return 0;
+}
+
+int vsd_set_value_by_path_uint32(vsd_context_t* context, char* path, uint32_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_uint32, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.u32 = val;
+    return 0;
+}
+
+int vsd_set_value_by_id_uint32(vsd_context_t* context, vsd_id_t id, uint32_t val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_uint32, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.u32 = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_float(vsd_context_t* context, vsd_desc_t* desc, float val)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_float);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.f = val;
+    return 0;
+}
+
+int vsd_set_value_by_path_float(vsd_context_t* context, char* path, float val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_float, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.f = val;
+    return 0;
+}
+
+int vsd_set_value_by_id_float(vsd_context_t* context, vsd_id_t id, float val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_float, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.f = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_double(vsd_context_t* context, vsd_desc_t* desc, double val)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_float);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.f = val;
+    return 0;
+}
+
+int vsd_set_value_by_path_double(vsd_context_t* context, char* path, double val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_double, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.d = val;
+    return 0;
+}
+
+int vsd_set_value_by_id_double(vsd_context_t* context, vsd_id_t id, double val)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_double, &desc);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val.d = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_string(vsd_context_t* context, vsd_desc_t* desc, char* data, int len)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_string);
+    vsd_data_u val;
+
+    if (res)
+        return res;
+
+
+    res = vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+                        &val,
+                        desc->data_type);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val = val;
+    return 0;
+}
+
+int vsd_set_value_by_path_string(vsd_context_t* context, char* path, char* data, int len)
+{
+    vsd_desc_t* desc = 0;
+    vsd_data_u val;
+    int res = _find_and_validate_by_path(context, path, vsd_string, &desc);
+
+    if (res)
+        return res;
+
+    res = vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+                        &val,
+                        desc->data_type);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val = val;
+
+    return 0;
+}
+
+int vsd_set_value_by_id_string(vsd_context_t* context, vsd_id_t id, char* data, int len)
+{
+    vsd_data_u val;
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_string, &desc);
+
+    if (res)
+        return res;
+
+    if (res)
+        return res;
+
+    res = vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+                        &val,
+                        desc->data_type);
+
+    if (res)
+        return res;
+
+    ((vsd_desc_leaf_t*) desc)->val = val;
+
+    return 0;
+}
+
+
+int vsd_set_value_by_desc_convert(vsd_context_t* context, vsd_desc_t* desc, char* value)
+{
+    int res = _find_and_validate_by_desc(context, desc, vsd_na);
+    vsd_data_u val;
+
+    if (res)
+        return res;
+
+    res = vsd_string_to_data(desc->data_type, value, &val);
+    if (res)
+        return res;
+
+    return vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+                        &val,
+                        desc->data_type);
+}
+
+int vsd_set_value_by_path_convert(vsd_context_t* context, char* path, char* value)
+{
+    vsd_desc_t* desc = 0;
+    vsd_data_u val;
+    int res = _find_and_validate_by_path(context, path, vsd_na, &desc);
+
+    if (res)
+        return res;
+
+    res = vsd_string_to_data(desc->data_type, value, &val);
+
+    if (res)
+        return res;
+
+    return vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+                        &val,
+                        desc->data_type);
+
+    return 0;
+}
+
+int vsd_set_value_by_id_convert(vsd_context_t* context, vsd_id_t id, char* value)
+{
+    vsd_desc_t* desc = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_na, &desc);
+    vsd_data_u val;
+
+    if (res)
+        return res;
+
+    res = vsd_string_to_data(desc->data_type, value, &val);
+
+    if (res)
+        return res;
+
+    return vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+                        &val,
+                        desc->data_type);
+
 }

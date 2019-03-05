@@ -85,6 +85,7 @@ int main(int argc, char* argv[])
 
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <signal_desc.csv> <signal-path>\n", argv[0]);
+        fprintf(stderr, "Example: %s vss_rel_2.0.0-alpha+005.csv Vehicle.Drivetrain.InternalCombustionEngine\n", argv[0]);
         exit(255);
     }
 
