@@ -21,12 +21,21 @@ Subscriptions can also be done an signal or on a branch level. If a
 branch is subscribed to, a callback will be made for any signal that
 is updated under that branch.
 
-## Using Vehicle Signal Distribution:  
+## Using Vehicle Signal Distribution:
 Be sure that you have built and deployed libraries for both dstc and
-reliable_multicast, as they are dependencies of the vsd project.
+reliable_multicast (RMC), as they are dependencies of the vsd project.
+
+The libraries can be found at:
+[Reliable Multicast v1.1](https://github.com/PDXostc/reliable_multicast/releases/tag/v1.1)
+[DSTC v0.6](https://github.com/PDXostc/dstc/releases/tag/v0.6)
+
+Build and install RMC first, followed by DSTC, and ensure that
+`Makefile` has include and link paths setup to the install
+directories.
 
 VSD currently will produce a shared object to link against, and also
 compiles two example programs to begin working with the project.
+
 
 ## CALL FLOW - PUBLISHER
 Below is an outline of how to:

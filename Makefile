@@ -1,5 +1,5 @@
 #
-# Executable example code from the README.md file
+# Makefile for the Vehicle Signal Distribution system.
 #
 
 NAME=vsd
@@ -87,16 +87,3 @@ $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} -Idstc.h
 
 $(SERVER_NOMACRO_SOURCE): ${SERVER_SOURCE} -Idstc.h
 	cpp ${INCPATH} -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
-
-#
-# Make sure the reliable_multicast is the latest copy of the submodule.
-#
-${DSTC_DIR}/README.md:
-	curl -L https://github.com/PDXostc/dstc/archive/v${DSTC_VERSION}.tar.gz | tar xfz -
-
-#
-# Make sure the reliable_multicast submodule is up to date.
-#
-depend: ${DSTC_DIR}/README.md
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C ${DSTC_DIR} depend
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C ${DSTC_DIR}
