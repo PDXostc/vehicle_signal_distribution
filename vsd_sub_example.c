@@ -49,6 +49,7 @@ void dump_desc(vsd_desc_t* elem)
         break;
     case vsd_boolean:
         printf("%s\n", vsd_value(elem).b?"true":"false");
+        break;
 
     case vsd_string:
         if (vsd_value(elem).s.len)
