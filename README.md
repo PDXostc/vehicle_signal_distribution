@@ -21,6 +21,12 @@ Subscriptions can also be done an signal or on a branch level. If a
 branch is subscribed to, a callback will be made for any signal that
 is updated under that branch.
 
+## Using Vehicle Signal Distribution:  
+Be sure that you have built and deployed libraries for both dstc and
+reliable_multicast, as they are dependencies of the vsd project.
+
+VSD currently will produce a shared object to link against, and also
+compiles two example programs to begin working with the project.
 
 ## CALL FLOW - PUBLISHER
 Below is an outline of how to:
