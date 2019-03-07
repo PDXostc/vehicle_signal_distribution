@@ -110,8 +110,6 @@ static int vsd_data_copy(vsd_data_u* dst,
 }
 
 
-
-
 // Encode a signal tree under self.
 static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
 {
@@ -128,11 +126,14 @@ static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
                                              // Abort recursion if we see an error.
                                              rec_res = encode_signal(node->data, buf, buf_sz, &local_len);
                                              if (rec_res != 0) {
-                                                 *len += local_len;
-                                                 buf_sz -= local_len;
+                                                 RMC_LOG_WARNING("Failed to encode %s: %s",
+                                                                 node->data->name,
+                                                                 strerror(rec_res));
                                                  return 0;
                                              }
                                              *len += local_len;
+                                             buf_sz -= local_len;
+                                             buf += local_len;
                                              return 1;
                                          }), 0);
 
@@ -171,7 +172,11 @@ static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
             return ENOMEM;
         }
 
-        RMC_LOG_DEBUG("Encoding %s/%u as %s", desc->name, desc->id, vsd_data_type_to_string(l_desc->base.data_type));
+        RMC_LOG_DEBUG("Encoding %s/%u as %s/%d. %d bytes",
+                      desc->name, desc->id,
+                      vsd_data_type_to_string(l_desc->base.data_type),
+                      l_desc->base.data_type,
+                      _data_type_size[l_desc->base.data_type]);
         // Copy out the raw data for the signal.
         memcpy(buf, (void*) &(l_desc->val), _data_type_size[l_desc->base.data_type]);
         buf += _data_type_size[l_desc->base.data_type];
@@ -194,12 +199,16 @@ static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
         buf += sizeof(l_desc->val.s.len);
         buf_sz -= sizeof(l_desc->val.s.len);
         *len +=  sizeof(l_desc->val.s.len);
+        RMC_LOG_DEBUG("Encoding %s/%u string length as %d bytes",
+                      desc->name, desc->id, sizeof(l_desc->val.s.len));
 
         // Copy string payload
-        memcpy(buf, (void*) &(l_desc->val.s.data), l_desc->val.s.len);
+        memcpy(buf, (void*) (l_desc->val.s.data), l_desc->val.s.len);
         buf += l_desc->val.s.len;
         *len +=  l_desc->val.s.len;
         buf_sz -= l_desc->val.s.len;
+        RMC_LOG_DEBUG("String is %d bytes",
+                      l_desc->val.s.len);
         return 0;
 
     default:
@@ -218,130 +227,112 @@ static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
 // the tree hanging under it (if it is a branch with children).
 // The value will be stored in the signal descriptor tree hanging under
 // context.
-static int decode_signal(vsd_context_t* ctx, uint8_t* buf, int buf_sz, int *len, vsd_desc_t** desc)
+static int decode_signal(vsd_context_t* ctx,
+                         uint8_t* buf, int buf_sz,
+                         vsd_desc_list_t* res_lst)
 {
     vsd_id_t id;
     int res;
+    vsd_desc_t* desc;
 
-    // Do we have enough data to decode signal ID?
-    if (buf_sz < sizeof(id))
-        return ENOMEM;
-
-    // Record signal ID.
-    id = *((vsd_id_t*) buf);
-    buf += sizeof(id);
-    buf_sz -= sizeof(id);
-    *len += sizeof(id);
-
-    // Locate signal in descriptor tree
-    res = vsd_find_desc_by_id(ctx, id, desc);
-
-    // Did we not find it?
-    // This means that we have a signal definition mismatch between sender
-    // and receiver.
-    if (res) {
-        RMC_LOG_ERROR("Cannot decode signal ID %u. Not defined: %s", id, strerror(res));
-        return res;
-    }
-
-    // Is this a signal branch?
-    if ((*desc)->elem_type == vsd_branch) {
-        int rec_res = 0;
-        vsd_desc_branch_t* br_desc = (vsd_desc_branch_t*) desc;
-        vsd_desc_list_for_each(&br_desc->children,
-                                  lambda(uint8_t,
-                                         (vsd_desc_node_t* node, void* _ud) {
-                                             int local_len = 0;
-                                             vsd_desc_t *tmp_desc = 0;
-                                             RMC_LOG_DEBUG("Decoding child with %d bytes left", local_len);
-                                             // Abort recursion if we see an error.
-                                             rec_res = decode_signal(ctx, buf, buf_sz, &local_len, &tmp_desc);
-
-                                             if (rec_res != 0)
-                                                 return 0;
-
-                                             *len += local_len;
-                                             buf_sz -= local_len;
-
-                                             return 1;
-                                         }), 0);
-
-        // Return whatever the last result was in the recursion run.
-        RMC_LOG_DEBUG("Got %s back", strerror(rec_res));
-        return rec_res;
-    }
-
-    // Decode a leaf node.
-    switch((*desc)->data_type) {
-    case vsd_int8:
-    case vsd_uint8:
-    case vsd_int16:
-    case vsd_uint16:
-    case vsd_int32:
-    case vsd_uint32:
-    case vsd_double:
-    case vsd_float:
-    case vsd_boolean: {
-        vsd_desc_leaf_t* l_desc = (vsd_desc_leaf_t*) *desc;
-
-        RMC_LOG_DEBUG("Decoding %s type %s", l_desc->base.name, vsd_data_type_to_string(l_desc->base.data_type));
-
-        // Do we have enough memory?
-        if (buf_sz < _data_type_size[l_desc->base.data_type]) {
-            RMC_LOG_ERROR("Could not decode %s signal ID %u. Needed %d bytes, %lu bytes available.",
-                          vsd_data_type_to_string(l_desc->base.data_type),
-                          l_desc->base.id,
-                          _data_type_size[l_desc->base.data_type],
-                          buf_sz);
+    while(buf_sz) {
+        // Do we have enough data to decode signal ID?
+        if (buf_sz < sizeof(id))
             return ENOMEM;
+
+        // Record signal ID.
+        id = *((vsd_id_t*) buf);
+        buf += sizeof(id);
+        buf_sz -= sizeof(id);
+
+        // Locate signal in descriptor tree
+        res = vsd_find_desc_by_id(ctx, id, &desc);
+
+        // If not found then we have a signal definition mismatch between sender
+        // and receiver.
+        if (res) {
+            RMC_LOG_FATAL("Cannot decode signal ID %u. Not defined: %s", id, strerror(res));
+            exit(255);
         }
 
-        // Copy out the raw data for the signal value
-        l_desc->val= *((vsd_data_u*) buf);
-        buf += _data_type_size[l_desc->base.data_type];
-        buf_sz -= _data_type_size[l_desc->base.data_type];
-        *len += _data_type_size[l_desc->base.data_type];
-        return 0;
-    }
-    case vsd_string: {
-        vsd_desc_leaf_t* l_desc = (vsd_desc_leaf_t*) desc;
-
-        RMC_LOG_DEBUG("Decoding %s type %s", l_desc->base.name, vsd_data_type_to_string(l_desc->base.data_type));
-        // Copy dynamic length string
-        if (buf_sz < sizeof(uint32_t)) {
-            RMC_LOG_ERROR("Could not decode string signal ID %u. Needed %d bytes, %lu bytes available.",
-                          l_desc->base.id, sizeof(uint32_t), buf_sz);
-            return ENOMEM;
+        // Is this a signal branch?
+        if (desc->elem_type == vsd_branch) {
+            RMC_LOG_FATAL("Received a branch as a signal. ID %u", desc->id);
+            exit(255);
         }
 
-        // Grab length
-        l_desc->val.s.len = *((uint32_t*) buf);
-        buf += sizeof(l_desc->val.s.len);
-        buf_sz -= sizeof(l_desc->val.s.len);
-        *len += sizeof(l_desc->val.s.len);
+        // Decode a leaf node.
+        switch(desc->data_type) {
+        case vsd_int8:
+        case vsd_uint8:
+        case vsd_int16:
+        case vsd_uint16:
+        case vsd_int32:
+        case vsd_uint32:
+        case vsd_double:
+        case vsd_float:
+        case vsd_boolean: {
+            vsd_desc_leaf_t* l_desc = (vsd_desc_leaf_t*) desc;
 
-        if (buf_sz < l_desc->val.s.len) {
-            RMC_LOG_ERROR("Could not decode string signal ID %u. Needed %d bytes, %lu bytes available.",
-                          l_desc->base.id, l_desc->val.s.len, buf_sz);
-            return ENOMEM;
+            // Do we have enough memory?
+            if (buf_sz < _data_type_size[l_desc->base.data_type]) {
+                RMC_LOG_ERROR("Could not decode %s signal ID %u. Needed %d bytes, %lu bytes available.",
+                              vsd_data_type_to_string(l_desc->base.data_type),
+                              l_desc->base.id,
+                              _data_type_size[l_desc->base.data_type],
+                              buf_sz);
+                return ENOMEM;
+            }
+
+            // Copy out the raw data for the signal value
+            l_desc->val= *((vsd_data_u*) buf);
+            buf += _data_type_size[l_desc->base.data_type];
+            buf_sz -= _data_type_size[l_desc->base.data_type];
+
+            vsd_desc_list_push_tail(res_lst, desc);
+            break;
         }
 
-        // Copy string payload
-        vsd_data_copy(&l_desc->val, (vsd_data_u*) buf, vsd_string);
-        buf += l_desc->val.s.len;
-        buf_sz -= l_desc->val.s.len;
-        len += l_desc->val.s.len;
-        return 0;
+        case vsd_string: {
+            vsd_desc_leaf_t* l_desc = (vsd_desc_leaf_t*) desc;
+            vsd_data_u val;
+
+            // Copy dynamic length string
+            if (buf_sz < sizeof(uint32_t)) {
+                RMC_LOG_ERROR("Could not decode string signal ID %u. Needed %d bytes, %lu bytes available.",
+                              l_desc->base.id, sizeof(uint32_t), buf_sz);
+                return ENOMEM;
+            }
+
+            // Grab length
+            val.s.len = *((uint32_t*) buf);
+            val.s.allocated = 0;
+            buf += sizeof(l_desc->val.s.len);
+            buf_sz -= sizeof(l_desc->val.s.len);
+            val.s.data = (char*) buf;
+            if (buf_sz < l_desc->val.s.len) {
+                RMC_LOG_ERROR("Could not decode string signal ID %u. Needed %d bytes, %lu bytes available.",
+                              l_desc->base.id, l_desc->val.s.len, buf_sz);
+                return ENOMEM;
+            }
+
+            // Copy string payload
+            vsd_data_copy(&l_desc->val, &val, vsd_string);
+            buf += val.s.len;
+            buf_sz -= val.s.len;
+
+            vsd_desc_list_push_tail(res_lst, desc);
+            break;
+        }
+
+        default:
+            RMC_LOG_ERROR("Could not decode %s signal ID %u. Not supported",
+                          vsd_data_type_to_string(desc->data_type),
+                          desc->id);
+            exit(255);
+        }
     }
 
-    default:
-        RMC_LOG_ERROR("Could not decode %s signal ID %u. Not supported",
-                      vsd_data_type_to_string((*desc)->data_type),
-                      (*desc)->id);
-        exit(255);
-    }
-
-    // Not reached.
     return 0;
 }
 
@@ -415,10 +406,10 @@ int vsd_publish(vsd_desc_t* desc)
 // calling vsd_transmit() through dstc_publish_signal() above.
 void vsd_signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg)
 {
-    int len = 0;
     int res = 0;
     vsd_desc_t* current = 0;
     vsd_desc_t* desc = 0;
+    vsd_desc_list_t res_lst;
 
     RMC_LOG_INFO("Got signal %u", id);
     if (!_current_context) {
@@ -426,24 +417,35 @@ void vsd_signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg)
         exit(255);
     }
 
-    res = decode_signal(_current_context, dynarg.data, dynarg.length, &len, &desc);
+    vsd_find_desc_by_id(_current_context, id, &desc);
     if (res) {
-        RMC_LOG_ERROR("Could not decode incoming signal %lu: %s",
-                      desc->id, strerror(res));
+        RMC_LOG_ERROR("Could not decode incoming signal %d: %s",
+                      id, strerror(res));
         return;
     }
 
-    // Traverse signal desc tree upward and invoke subscribers.
+    vsd_desc_list_init(&res_lst, 0, 0, 0);
+
+    res = decode_signal(_current_context, dynarg.data, dynarg.length, &res_lst);
+
+    if (res) {
+        RMC_LOG_ERROR("Could not decode incoming signal tree: %s", strerror(res));
+        return;
+    }
+
+    // Traverse signal desc tree, as provided in the root id argument,
+    // upward and invoke subscribers.
     current = desc;
     while(current) {
         vsd_subscriber_list_for_each(&current->subscribers,
-                                             lambda(uint8_t,
-                                                    (vsd_subscriber_node_t* node, void* _ud) {
-                                                        (*node->data)(desc);
-                                                        return 1;
-                                                    }), 0);
+                                     lambda(uint8_t,
+                                            (vsd_subscriber_node_t* node, void* _ud) {
+                                                (*node->data)(&res_lst);
+                                                return 1;
+                                            }), 0);
         current = &current->parent->base;
     }
+    vsd_desc_list_empty(&res_lst);
 }
 
 
@@ -568,7 +570,6 @@ int vsd_find_desc_by_id(vsd_context_t* context,
         return EINVAL;
 
     *result = 0;
-    RMC_LOG_INFO("Finding signal %d", id);
     HASH_FIND_INT(context->hash_table, &id, *result);
     if (!*result) {
         RMC_LOG_WARNING("Could not find signal %u. %u elements", id, HASH_COUNT(context->hash_table));
@@ -627,7 +628,6 @@ int vsd_find_desc_by_path(vsd_context_t* context,
             return ENOTDIR;
         }
 
-        RMC_LOG_DEBUG("Will search children of %s for %s", root_desc->name, path);
         loc_res = 0;
         vsd_desc_list_for_each(&((vsd_desc_branch_t*) root_desc)->children,
                                        lambda(uint8_t,
@@ -654,9 +654,7 @@ int vsd_find_desc_by_path(vsd_context_t* context,
 
 
         path = path_separator;
-        RMC_LOG_DEBUG("Moving into child %s.", root_desc->name);
     }
-    RMC_LOG_DEBUG("Reached end of path with %s", root_desc->name);
     *result = root_desc;
     return 0;
 }
@@ -815,13 +813,13 @@ int vsd_desc_create_leaf(vsd_context_t* ctx,
     }
 
     vsd_desc_init(ctx,
-                          &(*res)->base,
-                          elem_type,
-                          data_type,
-                          parent,
-                          id,
-                          strdup(name),
-                          strdup(description));
+                  &(*res)->base,
+                  elem_type,
+                  data_type,
+                  parent,
+                  id,
+                  strdup(name),
+                  strdup(description));
 
     // Copy in min/max/value
     vsd_data_copy(&(*res)->min, &min, data_type);
@@ -832,16 +830,18 @@ int vsd_desc_create_leaf(vsd_context_t* ctx,
 
 
 int vsd_desc_create_enum(vsd_context_t* ctx,
-                                vsd_desc_enum_t** res,
-                                vsd_elem_type_e elem_type,
-                                vsd_data_type_e data_type,
-                                vsd_id_t id,
-                                char* name,
-                                char* description,
-                                vsd_desc_branch_t* parent,
-                                vsd_data_u* enums, // Array of allowed values.
-                                int enum_count)
+                         vsd_desc_enum_t** res,
+                         vsd_elem_type_e elem_type,
+                         vsd_data_type_e data_type,
+                         vsd_id_t id,
+                         char* name,
+                         char* description,
+                         vsd_desc_branch_t* parent,
+                         vsd_data_u* enums, // Array of allowed values.
+                         int enum_count,
+                         vsd_data_u val)
 {
+
     if (!ctx || !res || !name || !description)
         return EINVAL;
 
@@ -864,6 +864,9 @@ int vsd_desc_create_enum(vsd_context_t* ctx,
     vsd_desc_init(ctx, &(*res)->leaf.base, elem_type, data_type, parent, id, name, description);
     vsd_enum_list_init(&(*res)->enums, 0,0,0);
 
+    vsd_data_copy(&(*res)->leaf.val, &val, data_type);
+    (*res)->leaf.min = vsd_data_u_nil;
+    (*res)->leaf.max = vsd_data_u_nil;
     // Copy in the enum pointers. We do not make a copy of them.
     while(enum_count--)
     {

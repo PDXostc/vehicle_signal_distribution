@@ -9,71 +9,71 @@
 #include "dstc.h"
 #include "vsd.h"
 
-void dump_desc(vsd_desc_t* elem, int index)
+void dump_desc(vsd_desc_t* elem)
 {
-    vsd_desc_list_t* d_list = 0;
-    vsd_desc_node_t* d_node = 0;
-
-    if (vsd_elem_type(elem) != vsd_branch) {
-        printf("%*c%s - %u:%s:%s -> ", index * 2, ' ',
-               vsd_name(elem),
-               vsd_id(elem),
-               vsd_elem_type_to_string(vsd_elem_type(elem)),
-               vsd_data_type_to_string(vsd_data_type(elem)));
-
-        switch(vsd_data_type(elem)) {
-        case vsd_int8:
-            printf("%d\n", vsd_value(elem).i8 & 0xFF);
-            break;
-        case vsd_int16:
-            printf("%d\n", vsd_value(elem).i16 & 0xFFFF);
-            break;
-        case vsd_int32:
-            printf("%d\n", vsd_value(elem).i32);
-            break;
-        case vsd_uint8:
-            printf("%u\n", vsd_value(elem).u8 & 0xFF);
-            break;
-        case vsd_uint16:
-            printf("%u\n", vsd_value(elem).u16 & 0xFFFF);
-            break;
-        case vsd_uint32:
-            printf("%u\n", vsd_value(elem).u32);
-            break;
-        case vsd_double:
-            printf("%f\n", vsd_value(elem).d);
-            break;
-        case vsd_float:
-            printf("%f\n", vsd_value(elem).f);
-            break;
-        case vsd_boolean:
-            printf("%s\n", vsd_value(elem).b?"true":"false");
-
-        case vsd_string:
-            printf("%*s\n", vsd_value(elem).s.len, vsd_value(elem).s.data);
-            break;
-        case vsd_na:
-            printf("[n/a]\n");
-            break;
-        default:
-            printf("[unsupported]\n");
-        }
-        return;
+    if (vsd_elem_type(elem) == vsd_branch) {
+        printf("FATAL: Tried to print branch: %u:%s", vsd_id(elem), vsd_name(elem));
+        exit(255);
     }
 
-    printf("%*c%s - branch\n", index * 2, ' ', vsd_name(elem));
+    printf("%s - %u:%s:%s -> ",
+           vsd_name(elem),
+           vsd_id(elem),
+           vsd_elem_type_to_string(vsd_elem_type(elem)),
+           vsd_data_type_to_string(vsd_data_type(elem)));
 
-    d_list = vsd_get_children(elem);
-    d_node = vsd_desc_list_head(d_list);
-    while(d_node) {
-        dump_desc(d_node->data, index + 1);
-        d_node = vsd_desc_list_next(d_node);
+    switch(vsd_data_type(elem)) {
+    case vsd_int8:
+        printf("%d\n", vsd_value(elem).i8 & 0xFF);
+        break;
+    case vsd_int16:
+        printf("%d\n", vsd_value(elem).i16 & 0xFFFF);
+        break;
+    case vsd_int32:
+        printf("%d\n", vsd_value(elem).i32);
+        break;
+    case vsd_uint8:
+        printf("%u\n", vsd_value(elem).u8 & 0xFF);
+        break;
+    case vsd_uint16:
+        printf("%u\n", vsd_value(elem).u16 & 0xFFFF);
+        break;
+    case vsd_uint32:
+        printf("%u\n", vsd_value(elem).u32);
+        break;
+    case vsd_double:
+        printf("%f\n", vsd_value(elem).d);
+        break;
+    case vsd_float:
+        printf("%f\n", vsd_value(elem).f);
+        break;
+    case vsd_boolean:
+        printf("%s\n", vsd_value(elem).b?"true":"false");
+
+    case vsd_string:
+        if (vsd_value(elem).s.len)
+            puts(vsd_value(elem).s.data);
+        else
+            puts("[nil]");
+        break;
+    case vsd_na:
+        printf("[n/a]\n");
+        break;
+    default:
+        printf("[unsupported]\n");
     }
+    return;
 }
 
-void signal_sub(vsd_desc_t* desc)
+void signal_sub(vsd_desc_list_t* list)
 {
-    dump_desc(desc, 0);
+    vsd_desc_list_for_each(list,
+                           lambda(uint8_t,
+                                  (vsd_desc_node_t* node, void* _ud) {
+                                      dump_desc(node->data);
+                                      return 1;
+                                  }), 0);
+
 }
 
 

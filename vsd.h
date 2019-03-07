@@ -45,8 +45,8 @@ typedef union {
     uint8_t b;
     struct {
         char* data;
-        uint32_t len;
-        uint32_t allocated;
+        uint16_t len;
+        uint16_t allocated;
     } s;
 } vsd_data_u;
 
@@ -54,13 +54,13 @@ typedef struct vsd_context vsd_context_t;
 typedef struct vsd_desc vsd_desc_t;
 typedef struct vsd_desc_branch vsd_desc_branch_t;
 typedef uint32_t vsd_id_t;
-typedef void (*vsd_subscriber_cb_t)(struct vsd_desc*);
 
 
 RMC_LIST(vsd_desc_list, vsd_desc_node, struct vsd_desc*)
 typedef vsd_desc_list vsd_desc_list_t;
 typedef vsd_desc_node vsd_desc_node_t;
 
+typedef void (*vsd_subscriber_cb_t)(vsd_desc_list_t* );
 
 // Find a signal descriptor by its path name
 // "Vehicle.Drivetrain.FuelSystem.TankCapacity" If parent_desc != 0,
