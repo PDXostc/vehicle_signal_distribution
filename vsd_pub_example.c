@@ -15,52 +15,101 @@
 #include "vsd.h"
 #include "dstc.h"
 
+void usage(char* prog)
+{
+        fprintf(stderr, "Usage: %s -d <signal_desc.csv> -p <signal->path> -s:<signal-path:value> ...\n", prog);
+        fprintf(stderr, "  -d <signal_desc.csv>     Signal description from github.com/GENIVI/vehicle_signal_manager\n");
+        fprintf(stderr, "  -p <signal->path>        The signal tree to publish\n");
+        fprintf(stderr, "  <signal-path:value> ...  Signal-value pair to set before publish\n\n");
+        fprintf(stderr, "Example: %s -d vss_rel_2.0.0-alpha+005.csv \\\n", prog);
+        fprintf(stderr, "         %*c -p Vehicle.Drivetrain.InternalCombustionEngine \\\n",
+                (int) strlen(prog), ' ');
+        fprintf(stderr, "         %*c -s Vehicle.Drivetrain.InternalCombustionEngine.Engine.Power:230 \\\n",
+                (int) strlen(prog), ' ');
+        fprintf(stderr, "         %*c -s Vehicle.Drivetrain.InternalCombustionEngine.FuelType:gasoline\n",
+                (int) strlen(prog), ' ');
+
+        exit(255);
+
+}
+
 int main(int argc, char* argv[])
 {
     vsd_desc_t* desc;
-    vsd_data_u val;
     vsd_context_t* ctx = 0;
     int res;
-    if (argc != 4) {
-        fprintf(stderr, "Usage: %s -s <signal_desc.csv> -p <signal->path> <signal-path:value> ...\n", argv[0]);
-        fprintf(stderr, "  -s <signal_desc.csv>     Signal specification from github.com/GENIVI/vehicle_signal_manager\n");
-        fprintf(stderr, "  -p <signal->path>        The signal tree to publish\n");
-        fprintf(stderr, "  <signal-path:value> ...  Signal-value pair to set before publish\n\n");
-        fprintf(stderr, "Example: %s -s vss_rel_2.0.0.csv \\\n", argv[0]);
-        fprintf(stderr, "         %*c -p Vehicle.Drivetrain.InternalCombustionEngine \\\n", (int) strlen(argv[0]), ' ');
-        fprintf(stderr, "         %*c    Vehicle.Drivetrain.InternalCombustionEngine.Engine.Power:230 \\\n",(int) strlen(argv[0]), ' ');
-        fprintf(stderr, "         %*c    Vehicle.Drivetrain.InternalCombustionEngine.FuelType:gasoline \\\n", (int) strlen(argv[0]), ' ');
+    char opt = 0;
+    char sig[1024];
+    char *val;
 
-        exit(255);
-   }
+    if (argc == 1)
+        usage(argv[0]);
 
-    vsd_load_from_file(&ctx, argv[1]);
-    res = vsd_find_desc_by_path(ctx, 0, argv[2], &desc);
+    // First grab the -s arg so that we can load a file
+    while ((opt = getopt(argc, argv, "s:p:d:")) != -1) {
+        switch (opt) {
+        case 'd':
+            res = vsd_load_from_file(&ctx, optarg);
+            if (res) {
+                fprintf(stderr, "Could not load %s: %s\n", optarg, strerror(res));
+                exit(255);
+            }
+            break;
 
-    if (res) {
-        printf("Cannot find signal %s: %s\n", argv[2], strerror(res));
+        default: /* '?' */
+            break;
+        }
+    }
+
+    if (!ctx) {
+        fprintf(stderr, "Please specify -s <signal_desc.csv>\n");
         exit(255);
     }
 
-    if (vsd_elem_type(desc) == vsd_branch) {
-        printf("Cannot signal %s is a branch: %s\n", argv[2], strerror(res));
-        exit(255);
+    optind = 1;
+    while ((opt = getopt(argc, argv, "s:p:d:")) != -1) {
+        switch (opt) {
+
+        case 's':
+            strcpy(sig, optarg);
+            val = strchr(sig, ':');
+            if (!val) {
+                fprintf(stderr, "Missing colon. Please signal values to set as -s <path>:<value>\n");
+                exit(255);
+            }
+            *val++ = 0;
+
+            res = vsd_set_value_by_path_convert(ctx, sig, val);
+            if (res) {
+                fprintf(stderr, "Could not set %s to %s: %s\n", sig, val, strerror(res));
+                exit(255);
+            }
+            break;
+
+        case 'p':
+            fprintf(stderr, "Publishing %s\n", optarg);
+            res = vsd_find_desc_by_path(ctx, 0, optarg, &desc);
+            if (res) {
+                fprintf(stderr, "Could not use publish path %s: %s\n", optarg, strerror(res));
+                exit(255);
+            }
+            break;
+
+        default: /* '?' */
+            break;
+        }
     }
 
-    res = vsd_string_to_data(vsd_data_type(desc), argv[3], &val);
-
-
-    if (res) {
-        printf("Cannot set convert %s to value of type %s: %s\n",
-               argv[3], vsd_data_type_to_string(vsd_data_type(desc)), strerror(res));
+    // Did we specify the signal tree to publish.
+    if (!desc) {
+        fprintf(stderr, "Please specify the signal subtree to publish using -p <signal->path>\n");
         exit(255);
     }
-
-    vsd_set_value(desc, val);
 
     // Ensure that the pub-sub relationships have been setup
-    dstc_process_events(500000);
+    dstc_process_events(400000);
 
+    // Send publish command to update
     res = vsd_publish(desc);
 
     if (res) {

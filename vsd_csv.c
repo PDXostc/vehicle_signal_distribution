@@ -70,7 +70,7 @@ int vsd_string_to_data(vsd_data_type_e type, char* str, vsd_data_u* res)
     case vsd_double: { *res = (vsd_data_u) { .d = (double) strtod(str, 0) }; return 0; }
     case vsd_float: { *res = (vsd_data_u) { .f = (float) strtof(str, 0) }; return 0; }
     case vsd_boolean: { *res = (vsd_data_u) { .b = (*str == '1' || *str == 't' || *str == 'T')?1:0 }; return 0; }
-    case vsd_string: { *res = (vsd_data_u) { .s.data = str, .s.len = strlen(str) }; return 0; }
+    case vsd_string: { *res = (vsd_data_u) { .s.data = str, .s.len = strlen(str)+1 }; return 0; }
     default:
         RMC_LOG_WARNING("Illegal type: %d / %s\n", type, str);
         *res = vsd_data_u_nil;
@@ -163,15 +163,16 @@ static vsd_desc_t* create_enumerator(vsd_context_t* context,
     }
 
     vsd_desc_create_enum(context,
-                                &res,
-                                elem_type,
-                                data_type,
-                                id,
-                                name,
-                                desc,
-                                parent,
-                                enum_data,
-                                enum_count);
+                         &res,
+                         elem_type,
+                         data_type,
+                         id,
+                         name,
+                         desc,
+                         parent,
+                         enum_data,
+                         enum_count,
+                         vsd_data_u_nil);
 
     return &res->leaf.base;
 }
@@ -251,7 +252,7 @@ vsd_desc_t* vsd_desc_create_from_csv(vsd_context_t* context,
     }
 
     elem_type_enum = vsd_string_to_elem_type(elem_type);
-    data_type_enum =  vsd_string_to_data_type(data_type);
+    data_type_enum = vsd_string_to_data_type(data_type);
 
     // Is this an enumerated thing?
     if (strlen(enumerator))
