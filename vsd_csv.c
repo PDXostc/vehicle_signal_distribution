@@ -334,7 +334,7 @@ int vsd_load_from_file(vsd_context_t** context, char *fname)
     vsd_set_active_context(*context);
     dstc_setup();
 
-    if (!fname) {
+    if (!in) {
         RMC_LOG_WARNING("Could not open %s: %s", fname, strerror(errno));
         return ENOENT;
     }
