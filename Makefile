@@ -7,6 +7,8 @@ NAME=vsd
 DSTC_VERSION=0.6
 DSTC_DIR=dstc-${DSTC_VERSION}
 
+DESTDIR ?= /usr/local
+
 INCLUDE=vsd.h
 
 SHARED_OBJ=vsd.o vsd_csv.o
@@ -67,11 +69,12 @@ install:
 	install -d ${DESTDIR}/bin
 	install -m 0755 ${EXAMPLE_TARGET_CLIENT} ${DESTDIR}/bin
 	install -m 0755 ${EXAMPLE_TARGET_SERVER} ${DESTDIR}/bin
+	install -m 0755 vss_rel_2.0.0-alpha+005.csv ${DESTDIR}/share/vss_rel_2.0.0-alpha+005.csv
 
 uninstall:
-	rm ${DESTDIR}/bin/${EXAMPLE_TARGET_CLIENT}
-	rm ${DESTDIR}/bin/${EXAMPLE_TARGET_SERVER}
-
+	rm -f ${DESTDIR}/bin/${EXAMPLE_TARGET_CLIENT}
+	rm -f ${DESTDIR}/bin/${EXAMPLE_TARGET_SERVER}
+	rm -f ${DESTDIR}/share/vss_rel_2.0.0-alpha+005.csv
 #
 # The client is built as a regular binary
 #

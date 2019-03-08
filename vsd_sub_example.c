@@ -87,12 +87,20 @@ int main(int argc, char* argv[])
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <signal_desc.csv> <signal-path>\n", argv[0]);
         fprintf(stderr, "Example: %s vss_rel_2.0.0-alpha+005.csv Vehicle.Drivetrain.InternalCombustionEngine\n", argv[0]);
+        fprintf(stderr, "Signal descriptor CSV file is installed in the share directory under the\n");
+        fprintf(stderr, "top-level installation directory.\n");
         exit(255);
     }
 
 
     // Load descriptor file
-    vsd_load_from_file(&ctx, argv[1]);
+    res = vsd_load_from_file(&ctx, argv[1]);
+
+    if (res) {
+        printf("Cannot load file %s: %s\n", argv[1], strerror(res));
+        exit(255);
+    }
+
 
     // Find the signal descriptor we want to subscribe to
     // Descriptor can be anywhere in the signal tree. Branch or signal

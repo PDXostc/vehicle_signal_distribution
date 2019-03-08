@@ -29,6 +29,8 @@ void usage(char* prog)
         fprintf(stderr, "         %*c -s Vehicle.Drivetrain.InternalCombustionEngine.FuelType:gasoline\n",
                 (int) strlen(prog), ' ');
 
+        fprintf(stderr, "\nSignal descriptor CSV file is installed in the share directory under the\n");
+        fprintf(stderr, "top-level installation directory.\n");
         exit(255);
 
 }

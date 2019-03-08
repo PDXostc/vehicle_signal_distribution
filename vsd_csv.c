@@ -13,8 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "rmc_common.h"
-#include "rmc_log.h"
+#include <rmc_log.h>
 
 
 static int get_next_token(char* csv_line, int* index, char* result, int max_result_len)
@@ -335,7 +334,7 @@ int vsd_load_from_file(vsd_context_t** context, char *fname)
     vsd_set_active_context(*context);
     dstc_setup();
 
-    if (!fname) {
+    if (!in) {
         RMC_LOG_WARNING("Could not open %s: %s", fname, strerror(errno));
         return ENOENT;
     }
