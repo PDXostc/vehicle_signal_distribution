@@ -12,10 +12,9 @@
 #include <memory.h>
 #include <string.h>
 #include <errno.h>
-#include "rmc_common.h"
-#include "rmc_list_template.h"
-#include "rmc_log.h"
-#include "dstc.h"
+#include <dstc.h>
+#include <rmc_list_template.h>
+#include <rmc_log.h>
 
 DSTC_CLIENT(vsd_signal_transmit, uint32_t,, DECL_DYNAMIC_ARG )
 DSTC_SERVER(vsd_signal_transmit, uint32_t,, DECL_DYNAMIC_ARG )

@@ -13,8 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "rmc_common.h"
-#include "rmc_log.h"
+#include <rmc_log.h>
 
 
 static int get_next_token(char* csv_line, int* index, char* result, int max_result_len)
