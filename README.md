@@ -27,8 +27,8 @@ reliable_multicast (RMC), as they are dependencies of the vsd project.
 
 The libraries can be found at:
 
-[Reliable Multicast v1.1](https://github.com/PDXostc/reliable_multicast/releases/tag/v1.1)
-[DSTC v1.1](https://github.com/PDXostc/dstc/releases/tag/v1.1)
+[Reliable Multicast v1.3](https://github.com/PDXostc/reliable_multicast/releases/tag/v1.3)
+[DSTC v1.2](https://github.com/PDXostc/dstc/releases/tag/v1.2)
 
 
 Build and install RMC first, followed by DSTC, and ensure that
