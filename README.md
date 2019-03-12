@@ -10,6 +10,10 @@ set, publish, subscribe, and receive to these signals.
 Please see [Vehicle Signal Specification (VSS)](https://github.com/GENIVI/vehicle_signal_specification)
 project for details on branches, signal structures and attributes.
 
+Below is an overview of how signals are structured.
+[VSS Overview]: https://github.com/PDXostc/raw/documentation/illustrations/vsd_overview.png "Vehicle Signal Specification Overview"
+
+
 A signal\'s value is set and published as two separate operations.
 
 Publishing can be done on an individual signal level, or on a branch
@@ -100,11 +104,11 @@ a list of all the published signals, which represents a snapshot of
 the published tree at that exact moment in time.
 
 ## API CALL FLOW - PUBLISHER
-Below is an outline of how to:
+The call flow for the publisher is illustrated below. Please note that
+the calls shown have slight name and argument variations in the implementation.
 
-1. Load a VSS signal descriptor file.
-3. Set the value of one or more signals identified by their VSS paths.
-4. Publish a subtree, or individual signals, of the VSS spec atmoically.
+
+
 
 
 ### Load VSS signal descriptor file
