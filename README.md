@@ -272,7 +272,7 @@ The received signals are traversed and the internal signal tree
 (maintained by `ctx` described above) will have its `ECT` and `RPM`
 values updated in order to reflect the new signal state.
 
-![Subscriber step 2](vsd_sub_4.png "Setting up subscription")
+![Subscriber step 2](illustrations/vsd_sub_4.png "Setting up subscription")
 *Fig. 9. Setting up a subscription*
 
 `FuelType` will be marked as updated but have its value unchanged.
