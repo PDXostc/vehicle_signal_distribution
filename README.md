@@ -11,8 +11,13 @@ Please see [Vehicle Signal Specification (VSS)](https://github.com/GENIVI/vehicl
 project for details on branches, signal structures and attributes.
 
 Below is an overview of how signals are structured.
-[VSS Overview]: https://github.com/PDXostc/raw/documentation/illustrations/vsd_overview.png "Vehicle Signal Specification Overview"
+![VSS Overview](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_overview.png "Vehicle Signal Specification Overview")
+*Fig 1. Vehicle Signal Specification Overview*
 
+**Branches** host other branches and signals and form an overall signal structure.<br>
+**Sensors** contain signals read from actual sensors and signals
+calculated from multiple sensor sources.<br>
+**Attributes** are static values containing configuration-level data.<br>
 
 A signal\'s value is set and published as two separate operations.
 
@@ -105,13 +110,18 @@ the published tree at that exact moment in time.
 
 ## API CALL FLOW - PUBLISHER
 The call flow for the publisher is illustrated below. Please note that
-the calls shown have slight name and argument variations in the implementation.
+the calls shown have slight name and argument variations in the
+implementation. Please see the sample code in `vsd_pub_example.c` and
+`vsd_sub_example.c` for further details.
 
 
+The signals this example are simplified down to two sensors, RPM
+(engine speed), ECT (engine coolant temperature), and one attribute,
+FuelType.
+![Publisher overview](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_1.png "Publisher Overview")
+*Fig 2. Signal Publisher overview*
 
-
-
-### Load VSS signal descriptor file
+### Loading VSS signal descriptor file
 
 The VSD system is hosted by a context variable that is setup by the library.
 In order to initialize VSD, a pointer to a `vsd_context_t` pointer is provided
@@ -126,23 +136,93 @@ signal IDs for branches, not only the signals themselves.  To verify
 if this is the case, check that the second field in the CSV has a
 number (in quotes) for each line.
 
-### Locate a signal by its path
-Before a signal can be set, a signal descriptor
+### Setting the first signal
+
+The signal publisher starts the process of distributing updated signal values to subscribers by setting a signal through a VSD call:
+
+![Publisher step 1](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_2.png "Setting the first signal")
+*Fig 3. Setting the first signal*
+
+A signal value can be set by its name (slow), its unique signal ID integer (less slow), or by a signal descriptor retrieved by name or ID (fast). In the example above we set the signal by name, which is a complete VSS path to the signal.
+
+The signal value is changed from its original 2350 to 2400.
+
+### Setting the second signal
+Additional signals can subsequently be set by the publisher:
+
+![Publisher step 2](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_3.png "Setting the second signal")
+*Fig 4. Setting the second signal*
+
+In this case we change ECT from 89 to 94 degrees (Centigrade). We can
+set an arbitrary number of signals, and also set the same signal
+multiple times.
 
 
+### Publishing a signal subtree
+Once all signals have been updated they can be published. Publishing is can be done on an individual signal level or on a branch level as shown below.
 
-    res = vsd_find_desc_by_path(ctx, 0, argv[2], &desc);
+![Publisher step 3](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_4.png "Publishing signals")
+*Fig 5. Publishing signals*
 
-    if (res) {
-        printf("Cannot find signal %s: %s\n", argv[2], strerror(res));
-        exit(255);
-    }
+In this case all signals hosted by the Engine branch, ECT, RPM, and FuelType, will be publsihed. Please note that FuelType is included although it has not been updated. There will be an option to specify if unchanged signals should be published or not.
 
-    if (vsd_elem_type(desc) == vsd_branch) {
-        printf("Cannot signal %s is a branch: %s\n", argv[2], strerror(res));
-        exit(255);
-    }
+An individual signal can be published by simply specifying the full VSS path to it:
 
-    res = vsd_string_to_data(vsd_data_type(desc), argv[3], &val);
+    vsd_publish("Engine.RPM");
 
-MORE
+
+### Transmitting published signals over the network.
+the `vsd_publish` call will pack up all signals hosted by the specified branch (or a specifically referenced signal) and send it out via the network:
+
+![Publisher step 4](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_5.png "Transmitting signals")
+*Fig 5. Transmitting signals*
+
+Signals are transmitted via a call to DSTC (see dependencies chapter for a link) and will ultimately be sent via UDP/IP multicast to all nodes in the network subscribing on the same multicast IP and port.
+The multicast packet hosting the signal is reliable and will be resent if the UDP packet is dropped. See Reliable Multicast for more information.
+
+All subscribers will read the transmitted signals and process them as described below.
+
+## API CALL FLOW - SUBSCRIBER
+The call flow for the subscriber is illustrated below.
+
+### Loading VSS signal descriptor file
+Th subscriber loads the CSS CSV file in the same way as the publisher.
+
+### Subscribing to a subtree
+XXXX
+
+![Subscriber step 1](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_1.png "Setting up subscription")
+*Fig 6. Setting up a subscription*
+
+YYY
+
+
+### Header
+XXXX
+
+![Subscriber step 2](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_2.png "Setting up subscription")
+*Fig 7. Setting up a subscription*
+YYY
+
+
+### Header
+XXXX
+
+![Subscriber step 3](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_3.png "Setting up subscription")
+*Fig 8. Setting up a subscription*
+YYY
+
+
+### Header
+XXXX
+
+![Subscriber step 2](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_4.png "Setting up subscription")
+*Fig 9. Setting up a subscription*
+YYY
+
+### Header
+XXXX
+
+![Subscriber step 2](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_5.png "Setting up subscription")
+*Fig 10. Setting up a subscription*
+YYY
