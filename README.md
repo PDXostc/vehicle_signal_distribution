@@ -1,4 +1,4 @@
-# VEHICLE SIGNAL DISTRIBUTION [VSD]
+ # VEHICLE SIGNAL DISTRIBUTION [VSD]
 Library to publish and subscribe Vehicle Signal Specification signals
 via reliab le multicast.
 
@@ -12,7 +12,7 @@ project for details on branches, signal structures and attributes.
 
 Below is an overview of how signals are structured.
 ![VSS Overview](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_overview.png "Vehicle Signal Specification Overview")
-*Fig 1. Vehicle Signal Specification Overview*
+*Fig. 1. Vehicle Signal Specification Overview*
 
 **Branches** host other branches and signals and form an overall signal structure.<br>
 **Sensors** contain signals read from actual sensors and signals
@@ -114,12 +114,11 @@ the calls shown have slight name and argument variations in the
 implementation. Please see the sample code in `vsd_pub_example.c` and
 `vsd_sub_example.c` for further details.
 
-
 The signals this example are simplified down to two sensors, RPM
 (engine speed), ECT (engine coolant temperature), and one attribute,
 FuelType.
 ![Publisher overview](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_1.png "Publisher Overview")
-*Fig 2. Signal Publisher overview*
+*Fig. 2. Signal Publisher overview*
 
 ### Loading VSS signal descriptor file
 
@@ -136,14 +135,21 @@ signal IDs for branches, not only the signals themselves.  To verify
 if this is the case, check that the second field in the CSV has a
 number (in quotes) for each line.
 
+The provided `ctx` pointer will be set to an internal context. All
+subsequent signal operations will use this pointer as an argument.
+
 ### Setting the first signal
 
-The signal publisher starts the process of distributing updated signal values to subscribers by setting a signal through a VSD call:
+The signal publisher starts the process of distributing updated signal
+values to subscribers by setting a signal through a VSD call:
 
 ![Publisher step 1](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_2.png "Setting the first signal")
-*Fig 3. Setting the first signal*
+*Fig. 3. Setting the first signal*
 
-A signal value can be set by its name (slow), its unique signal ID integer (less slow), or by a signal descriptor retrieved by name or ID (fast). In the example above we set the signal by name, which is a complete VSS path to the signal.
+A signal value can be set by its name (slow), its unique signal ID
+integer (less slow), or by a signal descriptor retrieved by name or ID
+(fast). In the example above we set the signal by name, which is a
+complete VSS path to the signal.
 
 The signal value is changed from its original 2350 to 2400.
 
@@ -151,7 +157,7 @@ The signal value is changed from its original 2350 to 2400.
 Additional signals can subsequently be set by the publisher:
 
 ![Publisher step 2](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_3.png "Setting the second signal")
-*Fig 4. Setting the second signal*
+*Fig. 4. Setting the second signal*
 
 In this case we change ECT from 89 to 94 degrees (Centigrade). We can
 set an arbitrary number of signals, and also set the same signal
@@ -162,67 +168,124 @@ multiple times.
 Once all signals have been updated they can be published. Publishing is can be done on an individual signal level or on a branch level as shown below.
 
 ![Publisher step 3](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_4.png "Publishing signals")
-*Fig 5. Publishing signals*
+*Fig. 5. Publishing signals*
 
-In this case all signals hosted by the Engine branch, ECT, RPM, and FuelType, will be publsihed. Please note that FuelType is included although it has not been updated. There will be an option to specify if unchanged signals should be published or not.
+In this case all signals hosted by the Engine branch, ECT, RPM, and
+FuelType, will be publsihed. Please note that FuelType is included
+although it has not been updated.
 
-An individual signal can be published by simply specifying the full VSS path to it:
+*Future improvement: There will be an option to specify
+if unchanged signals should be published or not.*
+
+An individual signal can be published by simply specifying the full
+VSS path to it:
 
     vsd_publish("Engine.RPM");
 
+Multiple nodes in a network can publish the same signals.
+
+Internally, the signals are published via the `signal_transmit()` DSTC RPC call. This call
+will be executed by all nodes that are using VSD, and thereby implements `signal_transmit()` as
+a DSTC server function.
+
+*Future improvement: Additions will be made to query initial state of signal, query which
+signals are currently being published, and default value in case a
+signal is not published by any node in the network.*
+
+
+### Processing DSTC events to transmit data
+VSD uses DSTC (and its underlying Reliable Multicast) for all network
+traffic, and DSTC event processing calls are used to receive and transmit
+signal-carrying UDP multicast packets over the network.
+In order to transmit the data, `dstc_process_events()` is called.
+
+![Publisher step 4](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_5.png "Processing events")
+*Fig. 6. Processing events*
+
+Please see the DSTC repo's `examples` directory for different
+variations of event processing, including moving the event loop out of
+DSTC to the calling program.
 
 ### Transmitting published signals over the network.
-the `vsd_publish` call will pack up all signals hosted by the specified branch (or a specifically referenced signal) and send it out via the network:
+The DSTC event processor will pick up the pending publish operation,
+create a netork packet and transmit it via the UDP multicast socket.
 
-![Publisher step 4](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_5.png "Transmitting signals")
-*Fig 5. Transmitting signals*
+![Publisher step 5](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_pub_6.png "Transmitting signals")
+*Fig. 7. Transmitting signals*
 
-Signals are transmitted via a call to DSTC (see dependencies chapter for a link) and will ultimately be sent via UDP/IP multicast to all nodes in the network subscribing on the same multicast IP and port.
-The multicast packet hosting the signal is reliable and will be resent if the UDP packet is dropped. See Reliable Multicast for more information.
-
-All subscribers will read the transmitted signals and process them as described below.
+The signal paths in the Fig. 7 packet are for illustrationd purposes
+only. The actual packet uses a 32-bit numeric signal ID loaded from
+the VSS file to identify the updated signal. The data is transmitted
+as a little-endian-formatted binary scalar or a tagged-length string.
 
 ## API CALL FLOW - SUBSCRIBER
 The call flow for the subscriber is illustrated below.
 
 ### Loading VSS signal descriptor file
-Th subscriber loads the CSS CSV file in the same way as the publisher.
+The subscriber loads the CSS CSV file in the same way as the publisher.
 
 ### Subscribing to a subtree
-XXXX
+Much like publishing, subscription can be done on a per-signal level
+or on whole subtrees hosted by a branch. Subscriptions works by
+setting up a callback to be invoked when one or more signals in the
+subscribed-to tree (or individual signals) are updated through a
+publish operation somewhere in the network.
 
 ![Subscriber step 1](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_1.png "Setting up subscription")
-*Fig 6. Setting up a subscription*
+*Fig. 6. Setting up a subscription*
 
-YYY
+When one or more signals are received from an atomic publish of a
+branch or specific signal, all subscription callbacks registered for
+the published branch/signal will be invoked. Subscriptions for
+branches higher up in the tree will also be invoked.
 
+As an effect. If the root branch is subscribed to, all publsihed
+signals received by the VSD system will trigger a callback to that
+Process.
 
-### Header
-XXXX
+Signals can be subscribed to by the same process that publishes
+them. In these cases VSD will behave exactly as if the signals were
+received from the network. In other words, the behavior is identical
+for how locally and remotely published signals are processed.
+
+### Process events
+In order to receive and process published signals from the network,
+the subscribing process must call `dstc_process_events()` in the same
+way that the publisher does.
 
 ![Subscriber step 2](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_2.png "Setting up subscription")
-*Fig 7. Setting up a subscription*
-YYY
+*Fig. 7. Setting up a subscription*
 
-
-### Header
-XXXX
+### Receiving published signals
+The DSTC event processor will read, unpack, and validate the published
+signals read from the network.
 
 ![Subscriber step 3](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_3.png "Setting up subscription")
-*Fig 8. Setting up a subscription*
-YYY
+*Fig. 8. Setting up a subscription*
 
+Internally the signals are received as a DSTC call to
+`signal_transmit()` which is the C function that will get invoked by
+the subscriber process.
 
-### Header
-XXXX
+### Updating signal values
+The received signals are traversed and the internal signal tree
+(maintained by `ctx` described above) will have its `ECT` and `RPM`
+values updated in order to reflect the new signal state.
 
 ![Subscriber step 2](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_4.png "Setting up subscription")
-*Fig 9. Setting up a subscription*
-YYY
+*Fig. 9. Setting up a subscription*
 
-### Header
-XXXX
+`FuelType` will be marked as updated but have its value unchanged.
+
+### Invoke callbacks
+The VSD system will use the signal or branch published as a starting
+point in the local tree in order to find subscribers where any subscription
+callbacks registered at that signal/branch will be invoked.
 
 ![Subscriber step 2](https://raw.githubusercontent.com/PDXostc/vehicle_signal_distribution/documentation/illustrations/vsd_sub_5.png "Setting up subscription")
-*Fig 10. Setting up a subscription*
-YYY
+*Fig. 10. Invoking callbacks.
+
+Once the immediate subscriber callbacks have been invoked, the parents
+for the published signal/branch will be traversed upward toward the
+signal tree root. Any subscription callbacks registered to these
+parent branches will be invoked as well.
