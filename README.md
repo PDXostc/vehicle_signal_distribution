@@ -21,6 +21,19 @@ Subscriptions can also be done an signal or on a branch level. If a
 branch is subscribed to, a callback will be made for any signal that
 is updated under that branch.
 
+## Generating Documentation with Doxygen
+
+The Doxyfile for generating documentation is located under **doc** folder.
+Generating the docs can be done with the following instructions.
+
+```doxygen doc/Doxygen```
+
+Note this requires the following packages to be install to generate docs
+
+* doygen
+* doxypy
+* doxyqml
+
 ## Using Vehicle Signal Distribution:
 Be sure that you have built and deployed libraries for both dstc and
 reliable_multicast (RMC), as they are dependencies of the vsd project.
