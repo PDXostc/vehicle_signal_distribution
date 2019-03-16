@@ -7,7 +7,7 @@
 //
 // Common signal functions
 //
-#include "vsd.h"
+#include "vehicle_signal_distribution.h"
 #include "vsd_internal.h"
 #include <memory.h>
 #include <string.h>

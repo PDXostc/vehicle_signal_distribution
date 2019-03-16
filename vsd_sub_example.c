@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "dstc.h"
-#include "vsd.h"
+#include "vehicle_signal_distribution.h"
 
 void dump_desc(vsd_desc_t* elem)
 {
