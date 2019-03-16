@@ -13,7 +13,7 @@ INCLUDE=vsd.h
 
 SHARED_OBJ=vsd.o vsd_csv.o
 
-TARGET_OBJECT=libvsd.so
+TARGET_SO=libvsd.so
 
 EXAMPLE_TARGET_CLIENT=${NAME}_pub_example
 TARGET_NOMACRO_CLIENT=${EXAMPLE_TARGET_CLIENT}_nomacro
@@ -41,11 +41,11 @@ LFLAGS= -L/usr/lib -ldstc -lrmc
 
 .PHONY: all clean install nomacro uninstall
 
-all: $(EXAMPLE_TARGET_SERVER) $(EXAMPLE_TARGET_CLIENT) $(TARGET_OBJECT)
+all: $(EXAMPLE_TARGET_SERVER) $(EXAMPLE_TARGET_CLIENT) $(TARGET_SO)
 
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT)
 
-$(TARGET_OBJECT): $(SHARED_OBJ)
+$(TARGET_SO): $(SHARED_OBJ)
 	$(CC) --shared $(CFLAGS) $^ $(LFLAGS) -o $@
 
 $(EXAMPLE_TARGET_SERVER): $(SERVER_OBJ) $(SHARED_OBJ)
@@ -63,18 +63,24 @@ clean:
 	rm -f $(EXAMPLE_TARGET_CLIENT) $(CLIENT_OBJ) $(EXAMPLE_TARGET_SERVER) $(SERVER_OBJ)  *~ \
 	$(TARGET_NOMACRO_CLIENT) $(TARGET_NOMACRO_SERVER) \
 	$(CLIENT_NOMACRO_SOURCE) $(SERVER_NOMACRO_SOURCE) \
-	$(CLIENT_NOMACRO_OBJ) $(SERVER_NOMACRO_OBJ)  $(SHARED_OBJ) $(TARGET_OBJECT)
+	$(CLIENT_NOMACRO_OBJ) $(SERVER_NOMACRO_OBJ)  $(SHARED_OBJ) $(TARGET_SO)
 
 install:
 	install -d ${DESTDIR}/bin
+	install -d ${DESTDIR}/lib
+	install -d ${DESTDIR}/include
 	install -m 0755 ${EXAMPLE_TARGET_CLIENT} ${DESTDIR}/bin
 	install -m 0755 ${EXAMPLE_TARGET_SERVER} ${DESTDIR}/bin
-	install -m 0755 vss_rel_2.0.0-alpha+005.csv ${DESTDIR}/share/vss_rel_2.0.0-alpha+005.csv
+	install -m 0644 ${TARGET_SO} ${DESTDIR}/lib
+	install -m 0644 ${INCLUDE} ${DESTDIR}/include
+	install -m 0644 vss_rel_2.0.0-alpha+005.csv ${DESTDIR}/share/vss_rel_2.0.0-alpha+005.csv
 
 uninstall:
 	rm -f ${DESTDIR}/bin/${EXAMPLE_TARGET_CLIENT}
 	rm -f ${DESTDIR}/bin/${EXAMPLE_TARGET_SERVER}
 	rm -f ${DESTDIR}/share/vss_rel_2.0.0-alpha+005.csv
+	rm -f ${DESTDIR}/lib/${TARGET_SO}
+	rm -f ${DESTDIR}/include/${INCLUDE}
 #
 # The client is built as a regular binary
 #
