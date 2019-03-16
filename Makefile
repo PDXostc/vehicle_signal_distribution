@@ -9,7 +9,7 @@ DSTC_DIR=dstc-${DSTC_VERSION}
 
 DESTDIR ?= /usr/local
 
-INCLUDE=vsd.h
+INCLUDE=vehicle_signal_distribution.h
 
 SHARED_OBJ=vsd.o vsd_csv.o
 

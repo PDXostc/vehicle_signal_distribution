@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "vsd.h"
+#include "vehicle_signal_distribution.h"
 #include "dstc.h"
 
 void usage(char* prog)
