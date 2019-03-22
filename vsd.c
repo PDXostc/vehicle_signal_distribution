@@ -1514,3 +1514,22 @@ int vsd_set_value_by_id_convert(vsd_context_t* context, vsd_id_t id, char* value
                         desc->data_type);
 
 }
+
+int vsd_context_create(struct vsd_context** context)
+{
+    if (!context)
+        return EINVAL;
+
+    *context = (vsd_context_t*) malloc(sizeof(vsd_context_t));
+    if (!*context) {
+        RMC_LOG_ERROR("Could not allocate %lu bytes: %s",
+                      sizeof(vsd_context_t), strerror(errno));
+        exit(255);
+    }
+
+    vsd_context_init(*context);
+    vsd_set_active_context(*context);
+    dstc_setup();
+
+    return 0;
+}

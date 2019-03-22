@@ -93,8 +93,9 @@ int main(int argc, char* argv[])
     }
 
 
+    vsd_context_create(&ctx);
     // Load descriptor file
-    res = vsd_load_from_file(&ctx, argv[1]);
+    res = vsd_load_from_file(ctx, argv[1]);
 
     if (res) {
         printf("Cannot load file %s: %s\n", argv[1], strerror(res));

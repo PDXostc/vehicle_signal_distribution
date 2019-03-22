@@ -177,8 +177,7 @@ static vsd_desc_t* create_enumerator(vsd_context_t* context,
 }
 
 
-vsd_desc_t* vsd_desc_create_from_csv(vsd_context_t* context,
-                                                   char *csv_line)
+int vsd_create_desc_from_csv(vsd_context_t* context, char *csv_line)
 {
     char path[1024];
     char id[16];
@@ -201,7 +200,7 @@ vsd_desc_t* vsd_desc_create_from_csv(vsd_context_t* context,
 
     // Check arguments
     if (!context || !csv_line)
-        return 0;
+        return EINVAL;
 
     RMC_LOG_DEBUG("Creating signal from: [%s]", csv_line);
 
@@ -217,7 +216,7 @@ vsd_desc_t* vsd_desc_create_from_csv(vsd_context_t* context,
         get_next_token(csv_line, &index, sensor, sizeof(sensor)) != EAGAIN ||
         get_next_token(csv_line, &index, actuator, sizeof(actuator)) != 0) {
         RMC_LOG_WARNING("Malformed signal descriptor CSV line ignored: [%s]", csv_line);
-        return 0;
+        return EFAULT;
     }
 
     // Break up path in path and final component.
@@ -254,23 +253,26 @@ vsd_desc_t* vsd_desc_create_from_csv(vsd_context_t* context,
     data_type_enum = vsd_string_to_data_type(data_type);
 
     // Is this an enumerated thing?
-    if (strlen(enumerator))
-        return create_enumerator(context,
-                                 elem_type_enum,
-                                 data_type_enum,
-                                 parent,
-                                 final_path_component,
-                                 strtoul(id, 0, 0),
-                                 desc_str,
-                                 enumerator);
+    if (strlen(enumerator)) {
+        create_enumerator(context,
+                          elem_type_enum,
+                          data_type_enum,
+                          parent,
+                          final_path_component,
+                          strtoul(id, 0, 0),
+                          desc_str,
+                          enumerator);
+        return 0;
+    }
 
     if (elem_type_enum == vsd_branch) {
         RMC_LOG_DEBUG("BRANCH Creating %s", final_path_component);
-        return create_branch(context,
-                             parent,
-                             final_path_component,
-                             strtoul(id, 0, 0),
-                             desc_str);
+        create_branch(context,
+                      parent,
+                      final_path_component,
+                      strtoul(id, 0, 0),
+                      desc_str);
+        return 0;
     }
 
     switch(data_type_enum) {
@@ -289,50 +291,42 @@ vsd_desc_t* vsd_desc_create_from_csv(vsd_context_t* context,
         vsd_string_to_data(data_type_enum, min, &min_u);
         vsd_string_to_data(data_type_enum, max, &max_u);
         RMC_LOG_DEBUG("LEAF Creating %s as %s", final_path_component, vsd_data_type_to_string(data_type_enum));
-        return create_leaf(context,
-                           elem_type_enum,
-                           data_type_enum,
-                           parent,
-                           final_path_component,
-                           strtoul(id, 0, 0),
-                           desc_str,
-                           min_u,
-                           max_u);
+        create_leaf(context,
+                    elem_type_enum,
+                    data_type_enum,
+                    parent,
+                    final_path_component,
+                    strtoul(id, 0, 0),
+                    desc_str,
+                    min_u,
+                    max_u);
+        return 0;
     }
     case vsd_string: {
         RMC_LOG_DEBUG("STRING Creating %s as %s", final_path_component, vsd_data_type_to_string(data_type_enum));
-        return create_leaf(context,
-                           elem_type_enum,
-                           data_type_enum,
-                           parent,
-                           final_path_component,
-                           strtoul(id, 0, 0),
-                           desc_str,
-                           vsd_data_u_nil,
-                           vsd_data_u_nil);
+        create_leaf(context,
+                    elem_type_enum,
+                    data_type_enum,
+                    parent,
+                    final_path_component,
+                    strtoul(id, 0, 0),
+                    desc_str,
+                    vsd_data_u_nil,
+                    vsd_data_u_nil);
+        return 0;
     }
-    default: {
+    default:
         RMC_LOG_WARNING("Ignoring signal type [%s]", data_type);
         return 0;
     }
-    }
+    return 0; // Not reached.
 }
 
-int vsd_load_from_file(vsd_context_t** context, char *fname)
+int vsd_load_from_file(vsd_context_t* context, char *fname)
 {
     FILE* in = fopen(fname, "r");
     char buf[4096];
     int line = 1;
-
-    *context = (vsd_context_t*) malloc(sizeof(vsd_context_t));
-    if (!*context) {
-        RMC_LOG_ERROR("Could not allocate %lu bytes: %s",
-                      sizeof(vsd_context_t), strerror(errno));
-        exit(255);
-    }
-    vsd_context_init(*context);
-    vsd_set_active_context(*context);
-    dstc_setup();
 
     if (!in) {
         RMC_LOG_WARNING("Could not open %s: %s", fname, strerror(errno));
@@ -344,7 +338,7 @@ int vsd_load_from_file(vsd_context_t** context, char *fname)
             buf[strlen(buf)-1] = 0;
         RMC_LOG_DEBUG("Processing line %d", line);
 
-        vsd_desc_create_from_csv(*context, buf);
+        vsd_create_desc_from_csv(context, buf);
         ++line;
     }
     return 0;
