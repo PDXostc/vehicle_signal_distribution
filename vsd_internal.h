@@ -59,6 +59,7 @@ typedef struct vsd_desc_enum {
 typedef struct vsd_context {
     vsd_desc_branch_t* root;
     vsd_desc_t* hash_table; // Hashed on id
+    void* user_data;
 } vsd_context_t;
 
 
