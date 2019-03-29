@@ -328,6 +328,8 @@ int vsd_load_from_file(vsd_context_t* context, char *fname)
     char buf[4096];
     int line = 1;
 
+    RMC_LOG_DEBUG("CTX: %p", context);
+    RMC_LOG_DEBUG("File: %s", fname);
     if (!in) {
         RMC_LOG_WARNING("Could not open %s: %s", fname, strerror(errno));
         return ENOENT;

@@ -343,11 +343,31 @@ void vsd_set_active_context(vsd_context_t* ctx)
     _current_context = ctx;
 }
 
+int vsd_context_set_user_data(vsd_context_t* ctx, void* user_data)
+{
+    if (!ctx)
+        return EINVAL;
+
+    ctx->user_data = user_data;
+    return 0;
+}
+
+void* vsd_context_get_user_data(vsd_context_t* ctx)
+{
+    if (!ctx)
+        return 0;
+
+    return ctx->user_data;
+}
+
 int vsd_context_init(vsd_context_t* ctx)
 {
+    if (!ctx)
+        return EINVAL;
+
     ctx->hash_table = 0; // Will be used by uthash.h macros.
     ctx->root = 0;
-    // vsd_desc_create_branch(ctx, &ctx->root, "root", 0, "root branch", 0);
+    ctx->user_data = 0;
     return 0;
 }
 
@@ -439,7 +459,7 @@ void vsd_signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg)
         vsd_subscriber_list_for_each(&current->subscribers,
                                      lambda(uint8_t,
                                             (vsd_subscriber_node_t* node, void* _ud) {
-                                                (*node->data)(&res_lst);
+                                                (*node->data)(_current_context, &res_lst);
                                                 return 1;
                                             }), 0);
         current = &current->parent->base;
@@ -754,13 +774,13 @@ int vsd_desc_create_branch(vsd_context_t* ctx,
     }
 
     vsd_desc_init(ctx,
-                          &(*res)->base,
-                          vsd_branch,
-                          vsd_na,
-                          parent,
-                          id,
-                          strdup(name),
-                          strdup(description));
+                  &(*res)->base,
+                  vsd_branch,
+                  vsd_na,
+                  parent,
+                  id,
+                  strdup(name),
+                  strdup(description));
 
     (*res)->base.parent = parent;
     vsd_desc_list_init(&(*res)->children, 0, 0, 0);
@@ -1528,6 +1548,7 @@ int vsd_context_create(struct vsd_context** context)
     }
 
     vsd_context_init(*context);
+    printf("CONTEXT: %p\n", context);
     vsd_set_active_context(*context);
     dstc_setup();
 

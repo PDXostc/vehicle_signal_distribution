@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <rmc_list.h>
 
-typedef enum {
+typedef enum _vsd_data_type_e {
     vsd_int8 = 0,
     vsd_uint8 = 1,
     vsd_int16 = 2,
@@ -24,7 +24,7 @@ typedef enum {
     vsd_na = 11,
 } vsd_data_type_e;
 
-typedef enum {
+typedef enum _vsd_elem_type_e {
     vsd_attribute = 0,
     vsd_branch = 1,
     vsd_sensor = 2,
@@ -33,7 +33,7 @@ typedef enum {
     vsd_element = 5,
 } vsd_elem_type_e;
 
-typedef union {
+typedef union _vsd_data_u {
     int8_t i8;
     uint8_t u8;
     int16_t i16;
@@ -59,8 +59,7 @@ typedef uint32_t vsd_id_t;
 RMC_LIST(vsd_desc_list, vsd_desc_node, struct vsd_desc*)
 typedef vsd_desc_list vsd_desc_list_t;
 typedef vsd_desc_node vsd_desc_node_t;
-
-typedef void (*vsd_subscriber_cb_t)(vsd_desc_list_t* );
+typedef void (*vsd_subscriber_cb_t)(vsd_context_t*, vsd_desc_list_t*);
 
 // Find a signal descriptor by its path name
 // "Vehicle.Drivetrain.FuelSystem.TankCapacity" If parent_desc != 0,
@@ -171,6 +170,12 @@ extern int vsd_set_value_by_id_convert(vsd_context_t* context, vsd_id_t id, char
 // be loaded with a signal specification and subsequent
 // pub/sub operations.
 extern int vsd_context_create(struct vsd_context** context);
+
+// Set user data for a context
+extern int vsd_context_set_user_data(vsd_context_t* ctx, void* user_data);
+
+// Return user data previously set with vsd_context_set_user_data().
+extern void* vsd_context_get_user_data(vsd_context_t* ctx);
 
 
 // Set an active context to be used when a signal is received.
