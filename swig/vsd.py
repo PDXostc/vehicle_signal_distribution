@@ -31,8 +31,8 @@ class data_type_e:
 def create_context():
     return vsd_swig.swig_vsd_create_context()
 
-def publish(ctx, sig):
-    return vsd_swig.swig_vsd_publish(ctx, sig)
+def publish(sig):
+    return vsd_swig.vsd_publish(sig)
 
 def subscribe(ctx, sig):
     return vsd_swig.swig_vsd_subscribe(ctx, sig)
@@ -40,11 +40,14 @@ def subscribe(ctx, sig):
 def load_from_file(ctx, fname):
     return vsd_swig.vsd_load_from_file(ctx, fname)
 
+def signal_by_id(ctx, sig_id):
+    return vsd_swig.swig_vsd_find_signal_by_path(ctx, sig_id)
+
 def signal(ctx, path):
-    return vsd_swig.swig_vsd_find_id_by_path(ctx, path)
+    return vsd_swig.swig_vsd_find_signal_by_path(ctx, path)
 
 def get(ctx, sig):
-    dt = vsd_swig.swig_vsd_data_type(ctx, sig)
+    dt = vsd_swig.swig_vsd_data_type(sig)
 
     if dt == data_type_e.vsd_int8:
         print("Get i8")
@@ -99,7 +102,7 @@ def get(ctx, sig):
 
 
 def set(ctx, sig, val):
-    dt = vsd_swig.swig_vsd_data_type(ctx, sig)
+    dt = vsd_swig.swig_vsd_data_type(sig)
 
     if dt == data_type_e.vsd_int8:
         print("set i8 {}".format(val))
