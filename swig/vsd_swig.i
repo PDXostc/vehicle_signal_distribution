@@ -113,35 +113,34 @@
         printf(" Create CTX %p\n", ctx);
 
         return ctx;
-
     }
 
-    int swig_vsd_publish(vsd_context_t* ctx, vsd_id_t id)
+    vsd_desc_t* swig_vsd_find_signal_by_path(vsd_context_t* ctx, char* path)
+    {
+        vsd_desc_t* res = 0;
+        if (vsd_find_desc_by_path(ctx, 0, path, &res))
+            return 0;
+
+        return res;
+    }
+
+    vsd_desc_t* swig_vsd_find_signal_by_id(vsd_context_t* ctx, vsd_id_t id)
     {
         vsd_desc_t* res = 0;
         if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
+            return 0;
 
-        return vsd_publish(res);
+        return res;
     }
 
-    int  swig_vsd_subscribe(vsd_context_t* ctx, vsd_id_t id)
+    int  swig_vsd_subscribe(vsd_context_t* ctx, vsd_desc_t* sig)
     {
-        vsd_desc_t* res = 0;
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_subscribe(ctx, res, swig_vsd_process);
+        return vsd_subscribe(ctx, sig, swig_vsd_process);
     }
 
-    int swig_vsd_data_type(vsd_context_t* ctx, vsd_id_t id)
+    int swig_vsd_data_type(vsd_desc_t* sig)
     {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res)) {
-            return vsd_na;
-        }
-        return vsd_data_type(res);
+        return (int) vsd_data_type(sig);
     }
 
     void swig_vsd_set_python_callback(vsd_context_t* ctx , PyObject* cb)
@@ -149,142 +148,88 @@
         vsd_context_set_user_data(ctx, (void*) cb);
     }
 
-    vsd_id_t swig_vsd_find_id_by_path(vsd_context_t* ctx, char* path)
-    {
-        vsd_desc_t* res = 0;
-        if (vsd_find_desc_by_path(ctx, 0, path, &res))
-            return ENOENT;
-
-        return res->id;
+    signed char swig_vsd_value_i8(vsd_context_t* ctx, vsd_desc_t* sig) {
+        return vsd_value(sig).i8;
     }
 
-    signed char swig_vsd_value_i8(vsd_context_t* ctx, vsd_id_t id) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_value(res).i8;
+    unsigned char swig_vsd_value_u8(vsd_context_t* ctx, vsd_desc_t* sig) {
+        return vsd_value(sig).u8;
     }
 
-    unsigned char swig_vsd_value_u8(vsd_context_t* ctx, vsd_id_t id) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_value(res).u8;
+    signed short swig_vsd_value_i16(vsd_context_t* ctx, vsd_desc_t* sig) {
+        return vsd_value(sig).i16;
     }
 
-    signed short swig_vsd_value_i16(vsd_context_t* ctx, vsd_id_t id) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_value(res).i16;
+    unsigned short swig_vsd_value_u16(vsd_context_t* ctx, vsd_desc_t* sig) {
+        return vsd_value(sig).u16;
     }
 
-    unsigned short swig_vsd_value_u16(vsd_context_t* ctx, vsd_id_t id) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_value(res).u16;
+    signed int swig_vsd_value_i32(vsd_context_t* ctx, vsd_desc_t* sig) {
+        return vsd_value(sig).i32;
     }
 
-    signed int swig_vsd_value_i32(vsd_context_t* ctx, vsd_id_t id) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_value(res).i32;
+    unsigned int swig_vsd_value_u32(vsd_context_t* ctx, vsd_desc_t* sig) {
+        return vsd_value(sig).u32;
     }
 
-    unsigned int swig_vsd_value_u32(vsd_context_t* ctx, vsd_id_t id) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_value(res).u32;
+    float swig_vsd_value_f(vsd_context_t* ctx, vsd_desc_t* sig) {
+        return vsd_value(sig).f;
     }
 
-    float swig_vsd_value_f(vsd_context_t* ctx, vsd_id_t id) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_value(res).f;
+    double swig_vsd_value_d(vsd_context_t* ctx, vsd_desc_t* sig) {
+        return vsd_value(sig).d;
     }
 
-    double swig_vsd_value_d(vsd_context_t* ctx, vsd_id_t id) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_value(res).d;
-    }
-
-    unsigned int swig_vsd_value_b(vsd_context_t* ctx, vsd_id_t id) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        return vsd_value(res).b;
+    unsigned int swig_vsd_value_b(vsd_context_t* ctx, vsd_desc_t* sig) {
+        return vsd_value(sig).b;
     }
 
     //
     // SET VALUE
     //
-    signed char swig_vsd_set_i8(vsd_context_t* ctx, vsd_id_t id, signed char val)
+    signed char swig_vsd_set_i8(vsd_context_t* ctx, vsd_desc_t* sig, signed char val)
     {
-        return vsd_set_value_by_id_int8(ctx, id, val);
+        return vsd_set_value_by_desc_int8(ctx, sig, val);
     }
 
-    unsigned char swig_vsd_set_u8(vsd_context_t* ctx, vsd_id_t id, unsigned char val)
+    unsigned char swig_vsd_set_u8(vsd_context_t* ctx, vsd_desc_t* sig, unsigned char val)
     {
-        return vsd_set_value_by_id_uint8(ctx, id, val);
+        return vsd_set_value_by_desc_uint8(ctx, sig, val);
     }
 
-    signed short swig_vsd_set_i16(vsd_context_t* ctx, vsd_id_t id, signed short val)
+    signed short swig_vsd_set_i16(vsd_context_t* ctx, vsd_desc_t* sig, signed short val)
     {
-        return vsd_set_value_by_id_int16(ctx, id, val);
+        return vsd_set_value_by_desc_int16(ctx, sig, val);
     }
 
-    unsigned short swig_vsd_set_u16(vsd_context_t* ctx, vsd_id_t id, unsigned short val)
+    unsigned short swig_vsd_set_u16(vsd_context_t* ctx, vsd_desc_t* sig, unsigned short val)
     {
-        return vsd_set_value_by_id_uint16(ctx, id, val);
+        return vsd_set_value_by_desc_uint16(ctx, sig, val);
     }
 
-    signed int swig_vsd_set_i32(vsd_context_t* ctx, vsd_id_t id, signed int val)
+    signed int swig_vsd_set_i32(vsd_context_t* ctx, vsd_desc_t* sig, signed int val)
     {
-        return vsd_set_value_by_id_int32(ctx, id, val);
+        return vsd_set_value_by_desc_int32(ctx, sig, val);
     }
 
-    unsigned int swig_vsd_set_u32(vsd_context_t* ctx, vsd_id_t id, unsigned int val)
+    unsigned int swig_vsd_set_u32(vsd_context_t* ctx, vsd_desc_t* sig, unsigned int val)
     {
-        return vsd_set_value_by_id_uint32(ctx, id, val);
+        return vsd_set_value_by_desc_uint32(ctx, sig, val);
     }
 
-    float swig_vsd_set_f(vsd_context_t* ctx, vsd_id_t id, float val)
+    float swig_vsd_set_f(vsd_context_t* ctx, vsd_desc_t* sig, float val)
     {
-        return vsd_set_value_by_id_float(ctx, id, val);
+        return vsd_set_value_by_desc_float(ctx, sig, val);
     }
 
-    double swig_vsd_set_d(vsd_context_t* ctx, vsd_id_t id, double val)
+    double swig_vsd_set_d(vsd_context_t* ctx, vsd_desc_t* sig, double val)
     {
-        return vsd_set_value_by_id_double(ctx, id, val);
+        return vsd_set_value_by_desc_double(ctx, sig, val);
     }
 
-    unsigned int swig_vsd_set_b(vsd_context_t* ctx, vsd_id_t id, signed char val)
+    unsigned int swig_vsd_set_b(vsd_context_t* ctx, vsd_desc_t* sig, signed char val)
     {
-        return vsd_set_value_by_id_boolean(ctx, id, val);
+        return vsd_set_value_by_desc_boolean(ctx, sig, val);
     }
 
 
@@ -293,15 +238,10 @@
 %include "cstring.i"
 %cstring_output_allocate_size(char** str, int *len, free(*$1));
 %{
-    int swig_vsd_value_s(vsd_context_t* ctx, vsd_id_t id, char** str, int *len) {
-        vsd_desc_t* res = 0;
-
-        if (vsd_find_desc_by_id(ctx, id, &res))
-            return ENOENT;
-
-        *str = (char*) malloc(vsd_value(res).s.len);
-        *len = vsd_value(res).s.len;
-        memcpy(*str, vsd_value(res).s.data, *len);
+    int swig_vsd_value_s(vsd_context_t* ctx, vsd_desc_t* sig, char** str, int *len) {
+        *str = (char*) malloc(vsd_value(sig).s.len);
+        *len = vsd_value(sig).s.len;
+        memcpy(*str, vsd_value(sig).s.data, *len);
         return 0;
 }
 %}

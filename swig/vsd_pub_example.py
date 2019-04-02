@@ -1,15 +1,17 @@
 
 # Test python client to exercise DSTC.
-import dstc
+import vsd
 
 
 if __name__ == "__main__":
-    client_func = dstc.register_client_function("print_name_and_age", "32si")
-    dstc.activate()
+    ctx = vsd.create_context()
+    vsd.load_from_file(ctx, "../vss_rel_2.0.0-alpha+005.csv")
+    vsd.process_events(300000)
 
-    print("Waiting for remote function")
-    while not dstc.remote_function_available(client_func):
-        dstc.process_events(100000)
+    sig = vsd.signal(ctx, "Vehicle.Drivetrain.Transmission.Gear")
+    vsd.set(ctx, sig, 4)
 
-    client_func("Jane Doe", 32)
-    dstc.process_events(10000)
+    pub = vsd.signal(ctx, "Vehicle.Drivetrain.Transmission")
+    vsd.publish(pub);
+    print("Should be 4: {}".format(vsd.get(ctx, sig)))
+    vsd.process_events(300000)
