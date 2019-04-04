@@ -66,7 +66,7 @@ void dump_desc(vsd_desc_t* elem)
     return;
 }
 
-void signal_sub(vsd_desc_list_t* list)
+void signal_sub(vsd_context_t* ctx,vsd_desc_list_t* list)
 {
     vsd_desc_list_for_each(list,
                            lambda(uint8_t,
@@ -93,8 +93,9 @@ int main(int argc, char* argv[])
     }
 
 
+    vsd_context_create(&ctx);
     // Load descriptor file
-    res = vsd_load_from_file(&ctx, argv[1]);
+    res = vsd_load_from_file(ctx, argv[1]);
 
     if (res) {
         printf("Cannot load file %s: %s\n", argv[1], strerror(res));

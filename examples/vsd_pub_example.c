@@ -47,11 +47,12 @@ int main(int argc, char* argv[])
     if (argc == 1)
         usage(argv[0]);
 
+    vsd_context_create(&ctx);
     // First grab the -s arg so that we can load a file
     while ((opt = getopt(argc, argv, "s:p:d:")) != -1) {
         switch (opt) {
         case 'd':
-            res = vsd_load_from_file(&ctx, optarg);
+            res = vsd_load_from_file(ctx, optarg);
             if (res) {
                 fprintf(stderr, "Could not load %s: %s\n", optarg, strerror(res));
                 exit(255);

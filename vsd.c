@@ -343,11 +343,31 @@ void vsd_set_active_context(vsd_context_t* ctx)
     _current_context = ctx;
 }
 
+int vsd_context_set_user_data(vsd_context_t* ctx, void* user_data)
+{
+    if (!ctx)
+        return EINVAL;
+
+    ctx->user_data = user_data;
+    return 0;
+}
+
+void* vsd_context_get_user_data(vsd_context_t* ctx)
+{
+    if (!ctx)
+        return 0;
+
+    return ctx->user_data;
+}
+
 int vsd_context_init(vsd_context_t* ctx)
 {
+    if (!ctx)
+        return EINVAL;
+
     ctx->hash_table = 0; // Will be used by uthash.h macros.
     ctx->root = 0;
-    // vsd_desc_create_branch(ctx, &ctx->root, "root", 0, "root branch", 0);
+    ctx->user_data = 0;
     return 0;
 }
 
@@ -439,7 +459,7 @@ void vsd_signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg)
         vsd_subscriber_list_for_each(&current->subscribers,
                                      lambda(uint8_t,
                                             (vsd_subscriber_node_t* node, void* _ud) {
-                                                (*node->data)(&res_lst);
+                                                (*node->data)(_current_context, &res_lst);
                                                 return 1;
                                             }), 0);
         current = &current->parent->base;
@@ -511,7 +531,7 @@ int vsd_desc_to_path(vsd_desc_t* desc, char* buf, int buf_len)
         if (buf_len <= len + 1)
             return ENOMEM;
 
-        memcpy(buf, desc->name, len);
+        memcpy(buf, desc->name, len + 1);
         buf += len;
         tot_len += len;
         buf_len -= len;
@@ -525,7 +545,6 @@ int vsd_desc_to_path(vsd_desc_t* desc, char* buf, int buf_len)
         }
 
     }
-    buf[tot_len] = 0;
     return 0;
 }
 
@@ -754,13 +773,13 @@ int vsd_desc_create_branch(vsd_context_t* ctx,
     }
 
     vsd_desc_init(ctx,
-                          &(*res)->base,
-                          vsd_branch,
-                          vsd_na,
-                          parent,
-                          id,
-                          strdup(name),
-                          strdup(description));
+                  &(*res)->base,
+                  vsd_branch,
+                  vsd_na,
+                  parent,
+                  id,
+                  strdup(name),
+                  strdup(description));
 
     (*res)->base.parent = parent;
     vsd_desc_list_init(&(*res)->children, 0, 0, 0);
@@ -1513,4 +1532,23 @@ int vsd_set_value_by_id_convert(vsd_context_t* context, vsd_id_t id, char* value
                         &val,
                         desc->data_type);
 
+}
+
+int vsd_context_create(struct vsd_context** context)
+{
+    if (!context)
+        return EINVAL;
+
+    *context = (vsd_context_t*) malloc(sizeof(vsd_context_t));
+    if (!*context) {
+        RMC_LOG_ERROR("Could not allocate %lu bytes: %s",
+                      sizeof(vsd_context_t), strerror(errno));
+        exit(255);
+    }
+
+    vsd_context_init(*context);
+    vsd_set_active_context(*context);
+    dstc_setup();
+
+    return 0;
 }
