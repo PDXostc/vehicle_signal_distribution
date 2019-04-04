@@ -4,7 +4,7 @@
 
 NAME=vsd
 
-DSTC_VERSION=0.6
+DSTC_VERSION=1.2
 DSTC_DIR=dstc-${DSTC_VERSION}
 
 DESTDIR ?= /usr/local
