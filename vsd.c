@@ -531,7 +531,7 @@ int vsd_desc_to_path(vsd_desc_t* desc, char* buf, int buf_len)
         if (buf_len <= len + 1)
             return ENOMEM;
 
-        memcpy(buf, desc->name, len);
+        memcpy(buf, desc->name, len + 1);
         buf += len;
         tot_len += len;
         buf_len -= len;
@@ -545,7 +545,6 @@ int vsd_desc_to_path(vsd_desc_t* desc, char* buf, int buf_len)
         }
 
     }
-    buf[tot_len] = 0;
     return 0;
 }
 
@@ -1548,7 +1547,6 @@ int vsd_context_create(struct vsd_context** context)
     }
 
     vsd_context_init(*context);
-    printf("CONTEXT: %p\n", context);
     vsd_set_active_context(*context);
     dstc_setup();
 

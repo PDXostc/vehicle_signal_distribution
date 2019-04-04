@@ -12,6 +12,7 @@
 import dstc
 import vsd_swig
 
+_callback = None
 # Copied in from vehicle_signal_distribution.h
 # Could not get exported enums to work.
 class data_type_e:
@@ -46,58 +47,48 @@ def signal_by_id(ctx, sig_id):
 def signal(ctx, path):
     return vsd_swig.swig_vsd_find_signal_by_path(ctx, path)
 
+def path(sig):
+    return vsd_swigt.vsd_desc_to_path_static(sig)
+
 def get(ctx, sig):
     dt = vsd_swig.swig_vsd_data_type(sig)
 
     if dt == data_type_e.vsd_int8:
-        print("Get i8")
         return vsd_swig.swig_vsd_value_i8(ctx, sig)
 
     if dt == data_type_e.vsd_uint8:
-        print("u8")
         return vsd_swig.swig_vsd_value_u8(ctx, sig)
 
     if dt == data_type_e.vsd_int16:
-        print("i16")
         return vsd_swig.swig_vsd_value_i16(ctx, sig)
 
     if dt == data_type_e.vsd_uint16:
-        print("u16")
         return vsd_swig.swig_vsd_value_u16(ctx, sig)
 
     if dt == data_type_e.vsd_int32:
-        print("i32")
         return vsd_swig.swig_vsd_value_i32(ctx, sig)
 
     if dt == data_type_e.vsd_uint32:
-        print("u32")
         return vsd_swig.swig_vsd_value_u32(ctx, sig)
 
     if dt == data_type_e.vsd_double:
-        print("d")
         return vsd_swig.swig_vsd_value_d(ctx, sig)
 
     if dt == data_type_e.vsd_float:
-        print("f")
         return vsd_swig.swig_vsd_value_f(ctx, sig)
 
     if dt == data_type_e.vsd_boolean:
-        print("b")
         return vsd_swig.swig_vsd_value_b(ctx, sig)
 
     if dt == data_type_e.vsd_string:
-        print("s")
         return vsd_swig.swig_vsd_value_s(ctx, sig)
 
     if dt == data_type_e.vsd_stream:
-        print("x")
         return None
 
     if dt == data_type_e.vsd_na:
-        print("NONE")
         return None
 
-    print("Wut")
     return None
 
 
@@ -105,58 +96,54 @@ def set(ctx, sig, val):
     dt = vsd_swig.swig_vsd_data_type(sig)
 
     if dt == data_type_e.vsd_int8:
-        print("set i8 {}".format(val))
         return vsd_swig.swig_vsd_set_i8(ctx, sig, val)
 
     if dt == data_type_e.vsd_uint8:
-        print("set u8 {}".format(val))
         return vsd_swig.swig_vsd_set_u8(ctx, sig, val)
 
     if dt == data_type_e.vsd_int16:
-        print("set i16 {}".format(val))
         return vsd_swig.swig_vsd_set_i16(ctx, sig, val)
 
     if dt == data_type_e.vsd_uint16:
-        print("set u16 {}".format(val))
         return vsd_swig.swig_vsd_set_u16(ctx, sig, val)
 
     if dt == data_type_e.vsd_int32:
-        print("set i32 {}".format(val))
         return vsd_swig.swig_vsd_set_i32(ctx, sig, val)
 
     if dt == data_type_e.vsd_uint32:
-        print("set u32 {}".format(val))
         return vsd_swig.swig_vsd_set_u32(ctx, sig, val)
 
     if dt == data_type_e.vsd_double:
-        print("set d {}".format(val))
         return vsd_swig.swig_vsd_set_d(ctx, sig, val)
 
     if dt == data_type_e.vsd_float:
-        print("set f {}".format(val))
         return vsd_swig.swig_vsd_set_f(ctx, sig, val)
 
     if dt == data_type_e.vsd_boolean:
-        print("set b {}".format(val))
         return vsd_swig.swig_vsd_set_b(ctx, sig, val)
 
     if dt == data_type_e.vsd_string:
-        print("set s {}".format(val))
         return vsd_swig.swig_vsd_set_s(ctx, sig, val)
 
     if dt == data_type_e.vsd_stream:
-        print("stream")
         return None
 
     if dt == data_type_e.vsd_na:
-        print("NONE")
         return None
 
-    print ("WUT {} {}".format(dt, data_type_e.vsd_uint32 ))
     return None
 
+def _intermediate_callback(*arg):
+    # Invoke the real callback with unpacked tuples provided
+    # as native arguments.
+
+    (signal_id, path, value) = arg
+    _callback(signal_id, path, value)
+
 def set_callback(ctx, cb):
-    return vsd_swig.swig_vsd_set_python_callback(ctx , cb)
+    global _callback
+    _callback = cb
+    return vsd_swig.swig_vsd_set_python_callback(ctx , _intermediate_callback)
 
 def process_events(timeout_msec):
     return vsd_swig.dstc_process_events(timeout_msec);
