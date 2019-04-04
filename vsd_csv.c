@@ -78,38 +78,38 @@ int vsd_string_to_data(vsd_data_type_e type, char* str, vsd_data_u* res)
 }
 
 
-static vsd_desc_t* create_branch(vsd_context_t* context,
-                                         vsd_desc_branch_t* parent,
+static vsd_signal_t* create_branch(vsd_context_t* context,
+                                         vsd_signal_branch_t* parent,
                                          char* name,
                                          vsd_id_t id,
                                          char* desc)
 {
-    vsd_desc_branch_t* res = 0;
+    vsd_signal_branch_t* res = 0;
 
-    vsd_desc_create_branch(context, &res, name, id, desc, parent);
+    vsd_signal_create_branch(context, &res, name, id, desc, parent);
     return &res->base;
 }
 
 
-static vsd_desc_t* create_leaf(vsd_context_t* context,
+static vsd_signal_t* create_leaf(vsd_context_t* context,
                                       vsd_elem_type_e elem_type,
                                       vsd_data_type_e data_type,
-                                      vsd_desc_branch_t* parent,
+                                      vsd_signal_branch_t* parent,
                                       char* name,
                                       vsd_id_t id,
-                                      char* desc,
+                                      char* sig,
                                       vsd_data_u min,
                                       vsd_data_u max)
 {
-    vsd_desc_leaf_t* res = 0;
+    vsd_signal_leaf_t* res = 0;
 
-    vsd_desc_create_leaf(context,
+    vsd_signal_create_leaf(context,
                                 &res,
                                 elem_type,
                                 data_type,
                                 id,
                                 name,
-                                desc,
+                                sig,
                                 parent,
                                 min,
                                 max,
@@ -118,16 +118,16 @@ static vsd_desc_t* create_leaf(vsd_context_t* context,
 
 }
 
-static vsd_desc_t* create_enumerator(vsd_context_t* context,
+static vsd_signal_t* create_enumerator(vsd_context_t* context,
                                             vsd_elem_type_e elem_type,
                                             vsd_data_type_e data_type,
-                                            vsd_desc_branch_t* parent,
+                                            vsd_signal_branch_t* parent,
                                             char* name,
                                             vsd_id_t id,
-                                            char* desc,
+                                            char* sig,
                                             char* enumerator)
 {
-    vsd_desc_enum_t* res = 0;
+    vsd_signal_enum_t* res = 0;
     char* str = enumerator;
     char* token = 0;
     char* saved = 0;
@@ -161,13 +161,13 @@ static vsd_desc_t* create_enumerator(vsd_context_t* context,
         enum_count++;
     }
 
-    vsd_desc_create_enum(context,
+    vsd_signal_create_enum(context,
                          &res,
                          elem_type,
                          data_type,
                          id,
                          name,
-                         desc,
+                         sig,
                          parent,
                          enum_data,
                          enum_count,
@@ -177,7 +177,7 @@ static vsd_desc_t* create_enumerator(vsd_context_t* context,
 }
 
 
-int vsd_create_desc_from_csv(vsd_context_t* context, char *csv_line)
+int vsd_create_signal_from_csv(vsd_context_t* context, char *csv_line)
 {
     char path[1024];
     char id[16];
@@ -193,8 +193,8 @@ int vsd_create_desc_from_csv(vsd_context_t* context, char *csv_line)
     int res = 0;
     int index = 0;
     char *final_path_component = 0;
-    vsd_desc_branch_t* parent;
-    vsd_desc_t* parent_desc;
+    vsd_signal_branch_t* parent;
+    vsd_signal_t* parent_sig;
     vsd_elem_type_e elem_type_enum;
     vsd_data_type_e data_type_enum;
 
@@ -215,7 +215,7 @@ int vsd_create_desc_from_csv(vsd_context_t* context, char *csv_line)
         get_next_token(csv_line, &index, enumerator, sizeof(enumerator)) != EAGAIN ||
         get_next_token(csv_line, &index, sensor, sizeof(sensor)) != EAGAIN ||
         get_next_token(csv_line, &index, actuator, sizeof(actuator)) != 0) {
-        RMC_LOG_WARNING("Malformed signal descriptor CSV line ignored: [%s]", csv_line);
+        RMC_LOG_WARNING("Malformed signal CSV line ignored: [%s]", csv_line);
         return EFAULT;
     }
 
@@ -227,10 +227,10 @@ int vsd_create_desc_from_csv(vsd_context_t* context, char *csv_line)
         *final_path_component++ = 0;
 
         // Locate the correct parent branch
-        res = vsd_find_desc_by_path(context,
-                                            &context->root->base,
-                                            path,
-                                            &parent_desc);
+        res = vsd_find_signal_by_path(context,
+                                      &context->root->base,
+                                      path,
+                                      &parent_sig);
 
         if (res != 0) {
             RMC_LOG_FATAL("Could not find existing path to signal [%s]: %s",
@@ -238,12 +238,12 @@ int vsd_create_desc_from_csv(vsd_context_t* context, char *csv_line)
             exit(255);
         }
 
-        if (parent_desc->elem_type != vsd_branch) {
+        if (parent_sig->elem_type != vsd_branch) {
             RMC_LOG_FATAL("Parent element is not branch [%s]: %s",
-                          path, vsd_elem_type_to_string(parent_desc->elem_type));
+                          path, vsd_elem_type_to_string(parent_sig->elem_type));
             exit(255);
         }
-        parent = (vsd_desc_branch_t*) parent_desc;
+        parent = (vsd_signal_branch_t*) parent_sig;
     } else {
         parent = 0; // Install under context root.
         final_path_component = path;
@@ -340,7 +340,7 @@ int vsd_load_from_file(vsd_context_t* context, char *fname)
             buf[strlen(buf)-1] = 0;
         RMC_LOG_DEBUG("Processing line %d", line);
 
-        vsd_create_desc_from_csv(context, buf);
+        vsd_create_signal_from_csv(context, buf);
         ++line;
     }
     return 0;
