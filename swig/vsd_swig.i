@@ -13,58 +13,51 @@
         PyObject *result = 0;
         PyObject *cb = (PyObject*) vsd_context_get_user_data(ctx);
         vsd_desc_t* elem = node->data;
+        char* sig_name = vsd_desc_to_path_static(elem);
 
         if (vsd_elem_type(elem) == vsd_branch) {
             printf("FATAL: Tried to print branch: %u:%s", vsd_id(elem), vsd_name(elem));
             exit(255);
         }
 
-        printf("%s - %u:%s:%s -> ",
-               vsd_name(elem),
-               vsd_id(elem),
-               vsd_elem_type_to_string(vsd_elem_type(elem)),
-               vsd_data_type_to_string(vsd_data_type(elem)));
 
         switch(vsd_data_type(elem)) {
         case vsd_int8:
-            arglist = Py_BuildValue("ib", node->data->id, vsd_value(elem).i8);
+            arglist = Py_BuildValue("Isb", elem->id, sig_name, vsd_value(elem).i8);
             break;
         case vsd_int16:
-            arglist = Py_BuildValue("ih", node->data->id, vsd_value(elem).i16);
-            printf("%d\n", vsd_value(elem).i16 & 0xFFFF);
+            arglist = Py_BuildValue("Ish", elem->id, sig_name, vsd_value(elem).i16);
             break;
         case vsd_int32:
-            arglist = Py_BuildValue("ii", node->data->id, vsd_value(elem).i32);
+            arglist = Py_BuildValue("Isi", elem->id, sig_name, vsd_value(elem).i32);
             break;
         case vsd_uint8:
-            arglist = Py_BuildValue("iB", node->data->id, vsd_value(elem).i8);
+            arglist = Py_BuildValue("IsB", elem->id, sig_name, vsd_value(elem).i8);
             break;
         case vsd_uint16:
-            arglist = Py_BuildValue("iH", node->data->id, vsd_value(elem).i16);
+            arglist = Py_BuildValue("IsH", elem->id, sig_name, vsd_value(elem).i16);
             break;
         case vsd_uint32:
-            arglist = Py_BuildValue("iI", node->data->id, vsd_value(elem).i32);
+            arglist = Py_BuildValue("IsI", elem->id, sig_name, vsd_value(elem).i32);
             break;
         case vsd_double:
-            arglist = Py_BuildValue("id", node->data->id, vsd_value(elem).d);
+            arglist = Py_BuildValue("Isd", elem->id, sig_name, vsd_value(elem).d);
             break;
         case vsd_float:
-            arglist = Py_BuildValue("if", node->data->id, vsd_value(elem).f);
+            arglist = Py_BuildValue("Isf", elem->id, sig_name, vsd_value(elem).f);
             break;
         case vsd_boolean:
-            arglist = Py_BuildValue("ib", node->data->id, vsd_value(elem).b);
+            arglist = Py_BuildValue("Isb", elem->id, sig_name, vsd_value(elem).b);
             break;
-
         case vsd_string:
-            arglist = Py_BuildValue("iy#", node->data->id,
+            arglist = Py_BuildValue("Isy#", elem->id, sig_name,
                                     vsd_value(elem).s.data,
                                     vsd_value(elem).s.len);
             break;
         case vsd_na:
-            printf("[n/a]\n");
             break;
         default:
-            printf("[unsupported]\n");
+            break;
         }
 
         if (arglist) {
@@ -102,16 +95,12 @@
                              struct vsd_desc* desc,
                              vsd_subscriber_cb_t callback);
 
-    extern int vsd_desc_to_path(struct vsd_desc* desc,
-                                char* buf,
-                                int buf_len);
+    extern char* vsd_desc_to_path_static(struct vsd_desc* desc);
 
     vsd_context_t* swig_vsd_create_context(void)
     {
         struct vsd_context* ctx = 0;
         vsd_context_create(&ctx);
-        printf(" Create CTX %p\n", ctx);
-
         return ctx;
     }
 
@@ -145,6 +134,13 @@
 
     void swig_vsd_set_python_callback(vsd_context_t* ctx , PyObject* cb)
     {
+        PyObject *o_cb = (PyObject*) vsd_context_get_user_data(ctx);
+
+        // Wipe old value, if set.
+        if (o_cb)
+            Py_DECREF(o_cb);
+
+        Py_INCREF(cb);
         vsd_context_set_user_data(ctx, (void*) cb);
     }
 
@@ -245,18 +241,3 @@
         return 0;
 }
 %}
-
-
-
- //%rename(setup) dstc_setup;
- //extern int dstc_setup(void);
-
-
- //%rename(process_events) dstc_process_events;
-
- //%rename(queue_func) dstc_queue_func;
- //extern int dstc_queue_func(char* name, const char* arg, unsigned int arg_sz);
-
- // %rename(remote_function_available) dstc_remote_function_available_by_name;
-
- // extern unsigned char dstc_remote_function_available_by_name(char* func_name);
