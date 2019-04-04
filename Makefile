@@ -9,7 +9,7 @@ DSTC_DIR=dstc-${DSTC_VERSION}
 
 DESTDIR ?= /usr/local
 
-INCLUDE=vehicle_signal_distribution.h
+INCLUDE=vehicle_signal_distribution.h vsd_internal.h
 
 SHARED_OBJ=vsd.o vsd_csv.o
 
@@ -22,7 +22,7 @@ LFLAGS= -L/usr/lib -ldstc -lrmc
 
 all: $(TARGET_SO)
 
-nomacro: 
+nomacro:
 	$(MAKE) -C examples nomacro
 
 $(TARGET_SO): $(SHARED_OBJ)
@@ -53,4 +53,3 @@ examples:
 
 install_examples:
 	$(MAKE) -C examples install
-

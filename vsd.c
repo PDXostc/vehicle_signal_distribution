@@ -19,7 +19,7 @@
 DSTC_CLIENT(vsd_signal_transmit, uint32_t,, DECL_DYNAMIC_ARG )
 DSTC_SERVER(vsd_signal_transmit, uint32_t,, DECL_DYNAMIC_ARG )
 
-RMC_LIST_IMPL(vsd_desc_list, vsd_desc_node, vsd_desc_t*)
+RMC_LIST_IMPL(vsd_signal_list, vsd_signal_node, vsd_signal_t*)
 RMC_LIST_IMPL(vsd_enum_list, vsd_enum_node, vsd_data_u)
 RMC_LIST_IMPL(vsd_subscriber_list, vsd_subscriber_node, vsd_subscriber_cb_t)
 
@@ -110,17 +110,17 @@ static int vsd_data_copy(vsd_data_u* dst,
 
 
 // Encode a signal tree under self.
-static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
+static int encode_signal(vsd_signal_t* sig, uint8_t* buf, int buf_sz, int* len)
 {
-    vsd_desc_leaf_t* l_desc = 0;
+    vsd_signal_leaf_t* l_signal = 0;
 
-    if (desc->elem_type == vsd_branch) {
+    if (sig->elem_type == vsd_branch) {
         int rec_res = 0;
-        vsd_desc_branch_t* br_desc = (vsd_desc_branch_t*) desc;
+        vsd_signal_branch_t* br_signal = (vsd_signal_branch_t*) sig;
 
-        vsd_desc_list_for_each(&br_desc->children,
+        vsd_signal_list_for_each(&br_signal->children,
                                   lambda(uint8_t,
-                                         (vsd_desc_node_t* node, void* _ud) {
+                                         (vsd_signal_node_t* node, void* _ud) {
                                              int local_len = 0;
                                              // Abort recursion if we see an error.
                                              rec_res = encode_signal(node->data, buf, buf_sz, &local_len);
@@ -141,16 +141,16 @@ static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
     }
 
     // Do we have enough space to encode signal ID?
-    if (buf_sz < sizeof(desc->id))
+    if (buf_sz < sizeof(sig->id))
         return ENOMEM;
 
-    memcpy(buf, (void*) &(desc->id), sizeof(desc->id));
-    buf += sizeof(desc->id);
-    buf_sz -= sizeof(desc->id);
-    *len += sizeof(desc->id);
+    memcpy(buf, (void*) &(sig->id), sizeof(sig->id));
+    buf += sizeof(sig->id);
+    buf_sz -= sizeof(sig->id);
+    *len += sizeof(sig->id);
 
     // Encode a leaf node.
-    switch(desc->data_type) {
+    switch(sig->data_type) {
     case vsd_int8:
     case vsd_uint8:
     case vsd_int16:
@@ -160,60 +160,60 @@ static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
     case vsd_double:
     case vsd_float:
     case vsd_boolean:
-        l_desc = (vsd_desc_leaf_t*) desc;
+        l_signal = (vsd_signal_leaf_t*) sig;
         // Do we have enough memory?
-        if (buf_sz < _data_type_size[l_desc->base.data_type]) {
+        if (buf_sz < _data_type_size[l_signal->base.data_type]) {
             RMC_LOG_ERROR("Could not encode %s signal ID %u. Needed %d bytes, %lu bytes available.",
-                          vsd_data_type_to_string(l_desc->base.data_type),
-                          l_desc->base.id,
-                          _data_type_size[l_desc->base.data_type],
+                          vsd_data_type_to_string(l_signal->base.data_type),
+                          l_signal->base.id,
+                          _data_type_size[l_signal->base.data_type],
                           buf_sz);
             return ENOMEM;
         }
 
         RMC_LOG_DEBUG("Encoding %s/%u as %s/%d. %d bytes",
-                      desc->name, desc->id,
-                      vsd_data_type_to_string(l_desc->base.data_type),
-                      l_desc->base.data_type,
-                      _data_type_size[l_desc->base.data_type]);
+                      sig->name, sig->id,
+                      vsd_data_type_to_string(l_signal->base.data_type),
+                      l_signal->base.data_type,
+                      _data_type_size[l_signal->base.data_type]);
         // Copy out the raw data for the signal.
-        memcpy(buf, (void*) &(l_desc->val), _data_type_size[l_desc->base.data_type]);
-        buf += _data_type_size[l_desc->base.data_type];
-        buf_sz -= _data_type_size[l_desc->base.data_type];
-        *len += _data_type_size[l_desc->base.data_type];
+        memcpy(buf, (void*) &(l_signal->val), _data_type_size[l_signal->base.data_type]);
+        buf += _data_type_size[l_signal->base.data_type];
+        buf_sz -= _data_type_size[l_signal->base.data_type];
+        *len += _data_type_size[l_signal->base.data_type];
         return 0;
 
     case vsd_string:
-        l_desc = (vsd_desc_leaf_t*) desc;
+        l_signal = (vsd_signal_leaf_t*) sig;
         // Copy dynamic length string
-        if (buf_sz < sizeof(uint32_t) + (l_desc->val.s.len)) {
+        if (buf_sz < sizeof(uint32_t) + (l_signal->val.s.len)) {
             RMC_LOG_ERROR("Could not encode string signal ID %u. Needed %d bytes, %lu bytes available.",
-                          l_desc->base.id,
-                          sizeof(uint32_t) + (l_desc->val.s.len),
+                          l_signal->base.id,
+                          sizeof(uint32_t) + (l_signal->val.s.len),
                           buf_sz);
             return ENOMEM;
         }
         // Copy string length
-        memcpy(buf, (void*) &(l_desc->val.s.len), sizeof(l_desc->val.s.len));
-        buf += sizeof(l_desc->val.s.len);
-        buf_sz -= sizeof(l_desc->val.s.len);
-        *len +=  sizeof(l_desc->val.s.len);
+        memcpy(buf, (void*) &(l_signal->val.s.len), sizeof(l_signal->val.s.len));
+        buf += sizeof(l_signal->val.s.len);
+        buf_sz -= sizeof(l_signal->val.s.len);
+        *len +=  sizeof(l_signal->val.s.len);
         RMC_LOG_DEBUG("Encoding %s/%u string length as %d bytes",
-                      desc->name, desc->id, sizeof(l_desc->val.s.len));
+                      sig->name, sig->id, sizeof(l_signal->val.s.len));
 
         // Copy string payload
-        memcpy(buf, (void*) (l_desc->val.s.data), l_desc->val.s.len);
-        buf += l_desc->val.s.len;
-        *len +=  l_desc->val.s.len;
-        buf_sz -= l_desc->val.s.len;
+        memcpy(buf, (void*) (l_signal->val.s.data), l_signal->val.s.len);
+        buf += l_signal->val.s.len;
+        *len +=  l_signal->val.s.len;
+        buf_sz -= l_signal->val.s.len;
         RMC_LOG_DEBUG("String is %d bytes",
-                      l_desc->val.s.len);
+                      l_signal->val.s.len);
         return 0;
 
     default:
         RMC_LOG_ERROR("Could not encode %s signal ID %u. Not supported",
-                      vsd_data_type_to_string(l_desc->base.data_type),
-                      desc->id);
+                      vsd_data_type_to_string(l_signal->base.data_type),
+                      sig->id);
         exit(255);
     }
 
@@ -222,17 +222,17 @@ static int encode_signal(vsd_desc_t* desc, uint8_t* buf, int buf_sz, int* len)
 }
 
 
-// Decode incoming signal data and populate the local descriptor, and possibly
+// Decode incoming signal data and populate the local signal, and possibly
 // the tree hanging under it (if it is a branch with children).
-// The value will be stored in the signal descriptor tree hanging under
+// The value will be stored in the signal tree hanging under
 // context.
 static int decode_signal(vsd_context_t* ctx,
                          uint8_t* buf, int buf_sz,
-                         vsd_desc_list_t* res_lst)
+                         vsd_signal_list_t* res_lst)
 {
     vsd_id_t id;
     int res;
-    vsd_desc_t* desc;
+    vsd_signal_t* sig;
 
     while(buf_sz) {
         // Do we have enough data to decode signal ID?
@@ -244,8 +244,8 @@ static int decode_signal(vsd_context_t* ctx,
         buf += sizeof(id);
         buf_sz -= sizeof(id);
 
-        // Locate signal in descriptor tree
-        res = vsd_find_desc_by_id(ctx, id, &desc);
+        // Locate signal in tree
+        res = vsd_find_signal_by_id(ctx, id, &sig);
 
         // If not found then we have a signal definition mismatch between sender
         // and receiver.
@@ -255,13 +255,13 @@ static int decode_signal(vsd_context_t* ctx,
         }
 
         // Is this a signal branch?
-        if (desc->elem_type == vsd_branch) {
-            RMC_LOG_FATAL("Received a branch as a signal. ID %u", desc->id);
+        if (sig->elem_type == vsd_branch) {
+            RMC_LOG_FATAL("Received a branch as a signal. ID %u", sig->id);
             exit(255);
         }
 
         // Decode a leaf node.
-        switch(desc->data_type) {
+        switch(sig->data_type) {
         case vsd_int8:
         case vsd_uint8:
         case vsd_int16:
@@ -271,63 +271,63 @@ static int decode_signal(vsd_context_t* ctx,
         case vsd_double:
         case vsd_float:
         case vsd_boolean: {
-            vsd_desc_leaf_t* l_desc = (vsd_desc_leaf_t*) desc;
+            vsd_signal_leaf_t* l_signal = (vsd_signal_leaf_t*) sig;
 
             // Do we have enough memory?
-            if (buf_sz < _data_type_size[l_desc->base.data_type]) {
+            if (buf_sz < _data_type_size[l_signal->base.data_type]) {
                 RMC_LOG_ERROR("Could not decode %s signal ID %u. Needed %d bytes, %lu bytes available.",
-                              vsd_data_type_to_string(l_desc->base.data_type),
-                              l_desc->base.id,
-                              _data_type_size[l_desc->base.data_type],
+                              vsd_data_type_to_string(l_signal->base.data_type),
+                              l_signal->base.id,
+                              _data_type_size[l_signal->base.data_type],
                               buf_sz);
                 return ENOMEM;
             }
 
             // Copy out the raw data for the signal value
-            l_desc->val= *((vsd_data_u*) buf);
-            buf += _data_type_size[l_desc->base.data_type];
-            buf_sz -= _data_type_size[l_desc->base.data_type];
+            l_signal->val= *((vsd_data_u*) buf);
+            buf += _data_type_size[l_signal->base.data_type];
+            buf_sz -= _data_type_size[l_signal->base.data_type];
 
-            vsd_desc_list_push_tail(res_lst, desc);
+            vsd_signal_list_push_tail(res_lst, sig);
             break;
         }
 
         case vsd_string: {
-            vsd_desc_leaf_t* l_desc = (vsd_desc_leaf_t*) desc;
+            vsd_signal_leaf_t* l_signal = (vsd_signal_leaf_t*) sig;
             vsd_data_u val;
 
             // Copy dynamic length string
             if (buf_sz < sizeof(uint32_t)) {
                 RMC_LOG_ERROR("Could not decode string signal ID %u. Needed %d bytes, %lu bytes available.",
-                              l_desc->base.id, sizeof(uint32_t), buf_sz);
+                              l_signal->base.id, sizeof(uint32_t), buf_sz);
                 return ENOMEM;
             }
 
             // Grab length
             val.s.len = *((uint32_t*) buf);
             val.s.allocated = 0;
-            buf += sizeof(l_desc->val.s.len);
-            buf_sz -= sizeof(l_desc->val.s.len);
+            buf += sizeof(l_signal->val.s.len);
+            buf_sz -= sizeof(l_signal->val.s.len);
             val.s.data = (char*) buf;
-            if (buf_sz < l_desc->val.s.len) {
+            if (buf_sz < l_signal->val.s.len) {
                 RMC_LOG_ERROR("Could not decode string signal ID %u. Needed %d bytes, %lu bytes available.",
-                              l_desc->base.id, l_desc->val.s.len, buf_sz);
+                              l_signal->base.id, l_signal->val.s.len, buf_sz);
                 return ENOMEM;
             }
 
             // Copy string payload
-            vsd_data_copy(&l_desc->val, &val, vsd_string);
+            vsd_data_copy(&l_signal->val, &val, vsd_string);
             buf += val.s.len;
             buf_sz -= val.s.len;
 
-            vsd_desc_list_push_tail(res_lst, desc);
+            vsd_signal_list_push_tail(res_lst, sig);
             break;
         }
 
         default:
             RMC_LOG_ERROR("Could not decode %s signal ID %u. Not supported",
-                          vsd_data_type_to_string(desc->data_type),
-                          desc->id);
+                          vsd_data_type_to_string(sig->data_type),
+                          sig->id);
             exit(255);
         }
     }
@@ -374,20 +374,20 @@ int vsd_context_init(vsd_context_t* ctx)
 // ----------------------
 
 int vsd_subscribe(vsd_context_t* ctx,
-                          vsd_desc_t* desc,
+                          vsd_signal_t* sig,
                           vsd_subscriber_cb_t callback)
 {
-    vsd_subscriber_list_push_tail(&desc->subscribers, callback);
+    vsd_subscriber_list_push_tail(&sig->subscribers, callback);
     return 0;
 }
 
 int vsd_unsubscribe(vsd_context_t* ctx,
-                            vsd_desc_t* desc,
+                            vsd_signal_t* sig,
                             vsd_subscriber_cb_t callback)
 {
     vsd_subscriber_node_t* node = 0;
 
-    node = vsd_subscriber_list_find_node(&desc->subscribers, callback,
+    node = vsd_subscriber_list_find_node(&sig->subscribers, callback,
                                                  lambda(int, (vsd_subscriber_cb_t a,
                                                               vsd_subscriber_cb_t b) {
                                                             return a == b;
@@ -401,22 +401,22 @@ int vsd_unsubscribe(vsd_context_t* ctx,
 }
 
 
-// Send out all signals under desc as an atomic update
-int vsd_publish(vsd_desc_t* desc)
+// Send out all signals under sig as an atomic update
+int vsd_publish(vsd_signal_t* sig)
 {
     uint8_t buf[0xFF00];
     int len = 0;
     int res = 0;
-    res = encode_signal(desc, buf, sizeof(buf), &len);
+    res = encode_signal(sig, buf, sizeof(buf), &len);
     if (res) {
         RMC_LOG_ERROR("Could not publish signal %lu: %s",
-                      desc->id, strerror(res));
+                      sig->id, strerror(res));
         return res;
     }
 
-    RMC_LOG_INFO("Sending signal %s / %u: %d bytes payload", vsd_desc_to_path_static(desc), desc->id, len);
+    RMC_LOG_INFO("Sending signal %s / %u: %d bytes payload", vsd_signal_to_path_static(sig), sig->id, len);
 
-    return dstc_vsd_signal_transmit(desc->id, DYNAMIC_ARG(buf, len));
+    return dstc_vsd_signal_transmit(sig->id, DYNAMIC_ARG(buf, len));
 }
 
 
@@ -426,9 +426,9 @@ int vsd_publish(vsd_desc_t* desc)
 void vsd_signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg)
 {
     int res = 0;
-    vsd_desc_t* current = 0;
-    vsd_desc_t* desc = 0;
-    vsd_desc_list_t res_lst;
+    vsd_signal_t* current = 0;
+    vsd_signal_t* sig = 0;
+    vsd_signal_list_t res_lst;
 
     RMC_LOG_INFO("Got signal %u", id);
     if (!_current_context) {
@@ -436,14 +436,14 @@ void vsd_signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg)
         exit(255);
     }
 
-    vsd_find_desc_by_id(_current_context, id, &desc);
+    vsd_find_signal_by_id(_current_context, id, &sig);
     if (res) {
         RMC_LOG_ERROR("Could not decode incoming signal %d: %s",
                       id, strerror(res));
         return;
     }
 
-    vsd_desc_list_init(&res_lst, 0, 0, 0);
+    vsd_signal_list_init(&res_lst, 0, 0, 0);
 
     res = decode_signal(_current_context, dynarg.data, dynarg.length, &res_lst);
 
@@ -452,9 +452,9 @@ void vsd_signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg)
         return;
     }
 
-    // Traverse signal desc tree, as provided in the root id argument,
+    // Traverse signal tree, as provided in the root id argument,
     // upward and invoke subscribers.
-    current = desc;
+    current = sig;
     while(current) {
         vsd_subscriber_list_for_each(&current->subscribers,
                                      lambda(uint8_t,
@@ -464,7 +464,7 @@ void vsd_signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg)
                                             }), 0);
         current = &current->parent->base;
     }
-    vsd_desc_list_empty(&res_lst);
+    vsd_signal_list_empty(&res_lst);
 }
 
 
@@ -491,47 +491,47 @@ char* vsd_data_type_to_string(vsd_data_type_e type)
 
 
 
-int vsd_desc_to_path(vsd_desc_t* desc, char* buf, int buf_len)
+int vsd_signal_to_path(vsd_signal_t* sig, char* buf, int buf_len)
 {
-    vsd_desc_t* stack[256];
+    vsd_signal_t* stack[256];
     int stp = 0;
     int tot_len = 0;
 
     if (!buf_len)
         return ENOMEM; // We need at least a null char.
 
-    // No descriptor?
-    if (!desc) {
+    // No signal?
+    if (!sig) {
         buf[0] = 0;
         return 0;
     }
 
 
-    // We need to create the path name from the root descriptor to the leaf descriptor.
-    // Traverse the tree from the lead (desc) upward toward the root and record
+    // We need to create the path name from the root signal to the leaf signal.
+    // Traverse the tree from the lead (sig) upward toward the root and record
     // the path in stack.
-    while(desc) {
+    while(sig) {
         if (stp == sizeof(stack) / sizeof(stack[0]))
             return ENOMEM;
 
-        stack[stp++] = desc;
-        desc = &desc->parent->base;
+        stack[stp++] = sig;
+        sig = &sig->parent->base;
     }
 
     // Traverse the stack in reverse, building up the path name
     // We have at least one element in stack.
-    desc = stack[stp-1];
+    sig = stack[stp-1];
 
     while(stp--) {
         int len = 0;
 
-        desc = stack[stp];
-        len = strlen(desc->name);
+        sig = stack[stp];
+        len = strlen(sig->name);
 
         if (buf_len <= len + 1)
             return ENOMEM;
 
-        memcpy(buf, desc->name, len + 1);
+        memcpy(buf, sig->name, len + 1);
         buf += len;
         tot_len += len;
         buf_len -= len;
@@ -548,11 +548,11 @@ int vsd_desc_to_path(vsd_desc_t* desc, char* buf, int buf_len)
     return 0;
 }
 
-char* vsd_desc_to_path_static(vsd_desc_t* desc)
+char* vsd_signal_to_path_static(vsd_signal_t* sig)
 {
     static char res[1024];
 
-    if (vsd_desc_to_path(desc, res, sizeof(res)) != 0)
+    if (vsd_signal_to_path(sig, res, sizeof(res)) != 0)
         return "[signal path too long]";
 
     return res;
@@ -580,9 +580,9 @@ char* vsd_elem_type_to_string(vsd_elem_type_e type)
 
 
 
-int vsd_find_desc_by_id(vsd_context_t* context,
+int vsd_find_signal_by_id(vsd_context_t* context,
                                vsd_id_t id,
-                               vsd_desc_t** result)
+                               vsd_signal_t** result)
 {
     if (!context || !result)
         return EINVAL;
@@ -596,23 +596,23 @@ int vsd_find_desc_by_id(vsd_context_t* context,
     return 0;
 }
 
-int vsd_find_desc_by_path(vsd_context_t* context,
-                          vsd_desc_t* root_desc,
+int vsd_find_signal_by_path(vsd_context_t* context,
+                          vsd_signal_t* root_signal,
                           char* path,
-                          vsd_desc_t** result)
+                          vsd_signal_t** result)
 {
     char *path_separator = 0;
-    vsd_desc_t* loc_res = 0;
+    vsd_signal_t* loc_res = 0;
 
     if (!context ||  !path || !result)
         return EINVAL;
 
     // IF no argument root and no context root, then we operate on an empty tree
-    if (!root_desc && !context->root)
+    if (!root_signal && !context->root)
         return ENOENT;
 
-    if (!root_desc)
-        root_desc = &context->root->base;
+    if (!root_signal)
+        root_signal = &context->root->base;
 
     // Ensure that first element in root matches
     path_separator = strchr(path, '.');
@@ -621,9 +621,9 @@ int vsd_find_desc_by_path(vsd_context_t* context,
     // move to the next char after the separator
     // If no separator is found, path_separator == NULL, allowing
     // us to detect end of path
-    if (strncmp(root_desc->name, path, path_separator?path_separator-path:strlen(path))) {
+    if (strncmp(root_signal->name, path, path_separator?path_separator-path:strlen(path))) {
         RMC_LOG_DEBUG("Root element name %s is not start of path %s",
-                     root_desc->name,
+                     root_signal->name,
                      path);
         return ENOENT;
     }
@@ -638,18 +638,18 @@ int vsd_find_desc_by_path(vsd_context_t* context,
         int path_len = path_separator?path_separator-path:strlen(path);
 
         // We have to go deeper into the tree. Is our current
-        // descriptor a branch that we can traverse into?
-        if (root_desc->elem_type != vsd_branch) {
+        // signal a branch that we can traverse into?
+        if (root_signal->elem_type != vsd_branch) {
             RMC_LOG_WARNING("Component %s is not branch %s. Needs to be branch to travers",
-                            root_desc->name,
-                            vsd_elem_type_to_string(root_desc->data_type));
+                            root_signal->name,
+                            vsd_elem_type_to_string(root_signal->data_type));
             return ENOTDIR;
         }
 
         loc_res = 0;
-        vsd_desc_list_for_each(&((vsd_desc_branch_t*) root_desc)->children,
+        vsd_signal_list_for_each(&((vsd_signal_branch_t*) root_signal)->children,
                                        lambda(uint8_t,
-                                              (vsd_desc_node_t* node, void* _ud) {
+                                              (vsd_signal_node_t* node, void* _ud) {
                                                   if (!strncmp(path, node->data->name, path_len)) {
                                                       loc_res = node->data;
                                                       return 0;
@@ -658,11 +658,11 @@ int vsd_find_desc_by_path(vsd_context_t* context,
                                               }), 0);
         if (!loc_res) {
             RMC_LOG_COMMENT("Child %*s not found under %s. ENOENT",
-                            path_len, path, root_desc->name);
+                            path_len, path, root_signal->name);
 
             return ENOENT;
         }
-        root_desc = loc_res;
+        root_signal = loc_res;
         // If we found a path component separator, nil it out and
         // move to the next char after the separator
         // If no separator is found, path_separator == NULL, allowing
@@ -673,26 +673,26 @@ int vsd_find_desc_by_path(vsd_context_t* context,
 
         path = path_separator;
     }
-    *result = root_desc;
+    *result = root_signal;
     return 0;
 }
 
 
-int vsd_desc_init(vsd_context_t* ctx,
-                         vsd_desc_t* desc,
+int vsd_signal_init(vsd_context_t* ctx,
+                         vsd_signal_t* sig,
                          vsd_elem_type_e elem_type,
                          vsd_data_type_e data_type,
-                         vsd_desc_branch_t* parent,
+                         vsd_signal_branch_t* parent,
                          vsd_id_t id,
                          char* name,
                          char* description)
 {
-    vsd_desc_t *result = 0;
+    vsd_signal_t *result = 0;
 
-    if (!ctx || !desc || !name || !description)
+    if (!ctx || !sig || !name || !description)
         return EINVAL;
 
-    *desc = (vsd_desc_t) {
+    *sig = (vsd_signal_t) {
         .data_type = data_type,
         .elem_type = elem_type,
         .id = id,
@@ -702,20 +702,20 @@ int vsd_desc_init(vsd_context_t* ctx,
     };
 
 
-    if (!desc->name) {
+    if (!sig->name) {
         RMC_LOG_FATAL("Failed to malloc %d bytes: %s", strlen(name), strerror(errno));
         exit(255);
     }
 
-    if (!desc->description) {
+    if (!sig->description) {
         RMC_LOG_FATAL("Failed to malloc %d bytes: %s", strlen(description), strerror(errno));
         exit(255);
     }
 
     if (parent)
-        vsd_desc_list_push_tail(&parent->children, desc);
+        vsd_signal_list_push_tail(&parent->children, sig);
 
-    vsd_subscriber_list_init(&desc->subscribers, 0, 0, 0);
+    vsd_subscriber_list_init(&sig->subscribers, 0, 0, 0);
 
     HASH_FIND_INT(ctx->hash_table, &id, result);
     if (result) {
@@ -723,7 +723,7 @@ int vsd_desc_init(vsd_context_t* ctx,
         exit(255);
     }
 
-    HASH_ADD_INT(ctx->hash_table, id, desc);
+    HASH_ADD_INT(ctx->hash_table, id, sig);
 
     return 0;
 }
@@ -737,42 +737,42 @@ int vsd_get_value(vsd_context_t* context,
                           vsd_data_type_e* data_type)
 {
     int res = 0;
-    vsd_desc_t* desc = 0;
+    vsd_signal_t* sig = 0;
 
-    res = vsd_find_desc_by_id(context, id, &desc);
+    res = vsd_find_signal_by_id(context, id, &sig);
     if (res)
         return res;
 
-    if (desc->data_type == vsd_na ||
-        desc->data_type == vsd_stream) {
-        RMC_LOG_WARNING("Could not get value from type %s", vsd_data_type_to_string(desc->data_type));
+    if (sig->data_type == vsd_na ||
+        sig->data_type == vsd_stream) {
+        RMC_LOG_WARNING("Could not get value from type %s", vsd_data_type_to_string(sig->data_type));
         return EINVAL;
     }
 
-    *result = ((vsd_desc_leaf_t*) desc)->val;
-    *data_type = desc->data_type;
+    *result = ((vsd_signal_leaf_t*) sig)->val;
+    *data_type = sig->data_type;
     return 0;
 }
 
 
-int vsd_desc_create_branch(vsd_context_t* ctx,
-                                   vsd_desc_branch_t** res,
+int vsd_signal_create_branch(vsd_context_t* ctx,
+                                   vsd_signal_branch_t** res,
                                    char* name,
                                    vsd_id_t id,
                                    char* description,
-                                   vsd_desc_branch_t* parent)
+                                   vsd_signal_branch_t* parent)
 {
 
     if (!ctx || !res || !name || !description)
         return EINVAL;
 
-    *res = (vsd_desc_branch_t*) malloc(sizeof(vsd_desc_branch_t));
+    *res = (vsd_signal_branch_t*) malloc(sizeof(vsd_signal_branch_t));
     if (!*res) {
-        RMC_LOG_FATAL("Failed to malloc %d bytes: %s", sizeof(vsd_desc_t), strerror(errno));
+        RMC_LOG_FATAL("Failed to malloc %d bytes: %s", sizeof(vsd_signal_t), strerror(errno));
         exit(255);
     }
 
-    vsd_desc_init(ctx,
+    vsd_signal_init(ctx,
                   &(*res)->base,
                   vsd_branch,
                   vsd_na,
@@ -782,7 +782,7 @@ int vsd_desc_create_branch(vsd_context_t* ctx,
                   strdup(description));
 
     (*res)->base.parent = parent;
-    vsd_desc_list_init(&(*res)->children, 0, 0, 0);
+    vsd_signal_list_init(&(*res)->children, 0, 0, 0);
 
     // Set root if parent is nil
     if (!parent) {
@@ -800,14 +800,14 @@ int vsd_desc_create_branch(vsd_context_t* ctx,
 }
 
 
-int vsd_desc_create_leaf(vsd_context_t* ctx,
-                                vsd_desc_leaf_t** res,
+int vsd_signal_create_leaf(vsd_context_t* ctx,
+                                vsd_signal_leaf_t** res,
                                 vsd_elem_type_e elem_type,
                                 vsd_data_type_e data_type,
                                 vsd_id_t id,
                                 char* name,
                                 char* description,
-                                vsd_desc_branch_t* parent,
+                                vsd_signal_branch_t* parent,
                                 vsd_data_u min,
                                 vsd_data_u max,
                                 vsd_data_u val)
@@ -823,14 +823,14 @@ int vsd_desc_create_leaf(vsd_context_t* ctx,
         return EINVAL;
     }
 
-    *res = (vsd_desc_leaf_t*) malloc(sizeof(vsd_desc_leaf_t));
+    *res = (vsd_signal_leaf_t*) malloc(sizeof(vsd_signal_leaf_t));
 
     if (!*res) {
-        RMC_LOG_FATAL("Failed to malloc %d bytes: %s", sizeof(vsd_desc_t), strerror(errno));
+        RMC_LOG_FATAL("Failed to malloc %d bytes: %s", sizeof(vsd_signal_t), strerror(errno));
         exit(255);
     }
 
-    vsd_desc_init(ctx,
+    vsd_signal_init(ctx,
                   &(*res)->base,
                   elem_type,
                   data_type,
@@ -847,14 +847,14 @@ int vsd_desc_create_leaf(vsd_context_t* ctx,
 }
 
 
-int vsd_desc_create_enum(vsd_context_t* ctx,
-                         vsd_desc_enum_t** res,
+int vsd_signal_create_enum(vsd_context_t* ctx,
+                         vsd_signal_enum_t** res,
                          vsd_elem_type_e elem_type,
                          vsd_data_type_e data_type,
                          vsd_id_t id,
                          char* name,
                          char* description,
-                         vsd_desc_branch_t* parent,
+                         vsd_signal_branch_t* parent,
                          vsd_data_u* enums, // Array of allowed values.
                          int enum_count,
                          vsd_data_u val)
@@ -872,14 +872,22 @@ int vsd_desc_create_enum(vsd_context_t* ctx,
         return EINVAL;
     }
 
-    *res = (vsd_desc_enum_t*) malloc(sizeof(vsd_desc_enum_t));
+    *res = (vsd_signal_enum_t*) malloc(sizeof(vsd_signal_enum_t));
 
     if (!*res) {
-        RMC_LOG_FATAL("Failed to malloc %d bytes: %s", sizeof(vsd_desc_t), strerror(errno));
+        RMC_LOG_FATAL("Failed to malloc %d bytes: %s", sizeof(vsd_signal_t), strerror(errno));
         exit(255);
     }
 
-    vsd_desc_init(ctx, &(*res)->leaf.base, elem_type, data_type, parent, id, name, description);
+    vsd_signal_init(ctx,
+                    &(*res)->leaf.base,
+                    elem_type,
+                    data_type,
+                    parent,
+                    id,
+                    name,
+                    description);
+
     vsd_enum_list_init(&(*res)->enums, 0,0,0);
 
     vsd_data_copy(&(*res)->leaf.val, &val, data_type);
@@ -895,111 +903,111 @@ int vsd_desc_create_enum(vsd_context_t* ctx,
 }
 
 
-int vsd_desc_delete(vsd_context_t* context, vsd_desc_t* desc)
+int vsd_signal_delete(vsd_context_t* context, vsd_signal_t* sig)
 {
     // Check arguments
-    if (!context || !desc)
+    if (!context || !sig)
         return EINVAL;
 
-    free(desc->name);
-    free(desc->description);
-    if (desc->data_type == vsd_string) {
+    free(sig->name);
+    free(sig->description);
+    if (sig->data_type == vsd_string) {
         // free(3) says that null pointer is ok.
 
-        free(((vsd_desc_leaf_t*) desc)->val.s.data);
-        free(((vsd_desc_leaf_t*) desc)->min.s.data);
-        free(((vsd_desc_leaf_t*) desc)->max.s.data);
+        free(((vsd_signal_leaf_t*) sig)->val.s.data);
+        free(((vsd_signal_leaf_t*) sig)->min.s.data);
+        free(((vsd_signal_leaf_t*) sig)->max.s.data);
 
     }
 
     // Delete kids, if we have them.
-    if (desc->elem_type == vsd_branch) {
-        vsd_desc_branch_t* br_desc = (vsd_desc_branch_t*) desc;
-        vsd_desc_t* child = 0;
+    if (sig->elem_type == vsd_branch) {
+        vsd_signal_branch_t* br_signal = (vsd_signal_branch_t*) sig;
+        vsd_signal_t* child = 0;
         // Traverse all children and recurse.
-        while(vsd_desc_list_pop_head(&br_desc->children, &child)) {
-            vsd_desc_delete(context, child);
+        while(vsd_signal_list_pop_head(&br_signal->children, &child)) {
+            vsd_signal_delete(context, child);
         }
     }
-    free(desc);
+    free(sig);
     return 0;
 }
 
 
 
-vsd_desc_list_t* vsd_get_children(vsd_desc_t* parent)
+vsd_signal_list_t* vsd_get_children(vsd_signal_t* parent)
 {
     if (!parent || parent->elem_type != vsd_branch)
         return 0;
 
-    return &((vsd_desc_branch_t*) parent)->children;
+    return &((vsd_signal_branch_t*) parent)->children;
 }
 
 
-vsd_elem_type_e vsd_elem_type(vsd_desc_t* desc)
+vsd_elem_type_e vsd_elem_type(vsd_signal_t* sig)
 {
-    if (!desc)
+    if (!sig)
         return 0;
 
-    return desc->elem_type;
+    return sig->elem_type;
 }
 
 
-vsd_data_type_e vsd_data_type(vsd_desc_t* desc)
+vsd_data_type_e vsd_data_type(vsd_signal_t* sig)
 {
-    if (!desc)
+    if (!sig)
         return 0;
 
-    return desc->data_type;
+    return sig->data_type;
 }
 
 
-char* vsd_name(vsd_desc_t* desc)
+char* vsd_name(vsd_signal_t* sig)
 {
-    if (!desc)
+    if (!sig)
         return 0;
 
-    return desc->name;
+    return sig->name;
 }
 
 
-vsd_id_t vsd_id(vsd_desc_t* desc)
+vsd_id_t vsd_id(vsd_signal_t* sig)
 {
-    if (!desc)
+    if (!sig)
         return 0;
 
-    return desc->id;
+    return sig->id;
 }
 
 
-vsd_data_u vsd_value(vsd_desc_t* desc)
+vsd_data_u vsd_value(vsd_signal_t* sig)
 {
-    if (!desc ||
-        desc->data_type == vsd_stream ||
-        desc->data_type == vsd_na)
+    if (!sig ||
+        sig->data_type == vsd_stream ||
+        sig->data_type == vsd_na)
         return vsd_data_u_nil;
 
-    return ((vsd_desc_leaf_t*) desc)->val;
+    return ((vsd_signal_leaf_t*) sig)->val;
 }
 
-vsd_data_u vsd_min(vsd_desc_t* desc)
+vsd_data_u vsd_min(vsd_signal_t* sig)
 {
-    if (!desc ||
-        desc->data_type == vsd_stream ||
-        desc->data_type == vsd_na)
+    if (!sig ||
+        sig->data_type == vsd_stream ||
+        sig->data_type == vsd_na)
         return vsd_data_u_nil;
 
-    return ((vsd_desc_leaf_t*) desc)->min;
+    return ((vsd_signal_leaf_t*) sig)->min;
 }
 
-vsd_data_u vsd_max(vsd_desc_t* desc)
+vsd_data_u vsd_max(vsd_signal_t* sig)
 {
-    if (!desc ||
-        desc->data_type == vsd_stream ||
-        desc->data_type == vsd_na)
+    if (!sig ||
+        sig->data_type == vsd_stream ||
+        sig->data_type == vsd_na)
         return vsd_data_u_nil;
 
-    return ((vsd_desc_leaf_t*) desc)->max;
+    return ((vsd_signal_leaf_t*) sig)->max;
 }
 
 
@@ -1010,40 +1018,40 @@ vsd_data_u vsd_max(vsd_desc_t* desc)
 static int _find_and_validate_by_id(vsd_context_t* context,
                                     vsd_id_t id,
                                     vsd_data_type_e type,
-                                    vsd_desc_t** desc)
+                                    vsd_signal_t** sig)
 {
     int res = 0;
 
-    res = vsd_find_desc_by_id(context, id, desc);
+    res = vsd_find_signal_by_id(context, id, sig);
     if (res)
         return res;
 
-    if ((*desc)->elem_type == vsd_branch) {
+    if ((*sig)->elem_type == vsd_branch) {
         RMC_LOG_WARNING("Signal ID %u is a branch", id);
         return EISDIR;
     }
 
-    if (type != vsd_na && (*desc)->data_type != type) {
+    if (type != vsd_na && (*sig)->data_type != type) {
         RMC_LOG_WARNING("Signal ID %u is %s, not boolean.",
-                        id, vsd_data_type_to_string((*desc)->data_type));
+                        id, vsd_data_type_to_string((*sig)->data_type));
         return EINVAL;
     }
 
     return 0;
 }
 
-static int _find_and_validate_by_desc(vsd_context_t* context,
-                                      vsd_desc_t* desc,
+static int _find_and_validate_by_signal(vsd_context_t* context,
+                                      vsd_signal_t* sig,
                                       vsd_data_type_e type)
 {
-    if (desc->elem_type == vsd_branch) {
-        RMC_LOG_WARNING("Signal ID %u is a branch", desc->id);
+    if (sig->elem_type == vsd_branch) {
+        RMC_LOG_WARNING("Signal ID %u is a branch", sig->id);
         return EISDIR;
     }
 
-    if (type != vsd_na && desc->data_type != type) {
+    if (type != vsd_na && sig->data_type != type) {
         RMC_LOG_WARNING("Signal ID %u is %s, not boolean.",
-                        desc->id, vsd_data_type_to_string(desc->data_type));
+                        sig->id, vsd_data_type_to_string(sig->data_type));
         return EINVAL;
     }
 
@@ -1053,400 +1061,400 @@ static int _find_and_validate_by_desc(vsd_context_t* context,
 static int _find_and_validate_by_path(vsd_context_t* context,
                                       char* path,
                                       vsd_data_type_e type,
-                                      vsd_desc_t** desc)
+                                      vsd_signal_t** sig)
 {
     int res = 0;
 
-    res = vsd_find_desc_by_path(context, 0, path, desc);
+    res = vsd_find_signal_by_path(context, 0, path, sig);
     if (res)
         return res;
 
-    if ((*desc)->elem_type == vsd_branch) {
-        RMC_LOG_WARNING("Signal ID %u is a branch", (*desc)->id);
+    if ((*sig)->elem_type == vsd_branch) {
+        RMC_LOG_WARNING("Signal ID %u is a branch", (*sig)->id);
         return EISDIR;
     }
 
-    if (type != vsd_na && (*desc)->data_type != type) {
+    if (type != vsd_na && (*sig)->data_type != type) {
         RMC_LOG_WARNING("Signal ID %u is %s, not boolean.",
-                        (*desc)->id, vsd_data_type_to_string((*desc)->data_type));
+                        (*sig)->id, vsd_data_type_to_string((*sig)->data_type));
         return EINVAL;
     }
     return 0;
 }
 
 // -----
-int vsd_set_value_by_desc_boolean(vsd_context_t* context, vsd_desc_t* desc, uint8_t val)
+int vsd_set_value_by_signal_boolean(vsd_context_t* context, vsd_signal_t* sig, uint8_t val)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_boolean);
+    int res = _find_and_validate_by_signal(context, sig, vsd_boolean);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.b = val;
+    ((vsd_signal_leaf_t*) sig)->val.b = val;
     return 0;
 }
 
 
 int vsd_set_value_by_path_boolean(vsd_context_t* context, char* path, uint8_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_path(context, path, vsd_boolean, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_boolean, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.b = val;
+    ((vsd_signal_leaf_t*) sig)->val.b = val;
     return 0;
 }
 
 
 int vsd_set_value_by_id_boolean(vsd_context_t* context, vsd_id_t id, uint8_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_boolean, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_boolean, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.b = val;
+    ((vsd_signal_leaf_t*) sig)->val.b = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_int8(vsd_context_t* context, vsd_desc_t* desc, int8_t val)
+int vsd_set_value_by_signal_int8(vsd_context_t* context, vsd_signal_t* sig, int8_t val)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_int8);
+    int res = _find_and_validate_by_signal(context, sig, vsd_int8);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.i8 = val;
+    ((vsd_signal_leaf_t*) sig)->val.i8 = val;
     return 0;
 }
 
 int vsd_set_value_by_path_int8(vsd_context_t* context, char* path, int8_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_path(context, path, vsd_int8, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_int8, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.i8 = val;
+    ((vsd_signal_leaf_t*) sig)->val.i8 = val;
     return 0;
 }
 
 int vsd_set_value_by_id_int8(vsd_context_t* context, vsd_id_t id, int8_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_int8, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_int8, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.i8 = val;
+    ((vsd_signal_leaf_t*) sig)->val.i8 = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_uint8(vsd_context_t* context, vsd_desc_t* desc, uint8_t val)
+int vsd_set_value_by_signal_uint8(vsd_context_t* context, vsd_signal_t* sig, uint8_t val)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_uint8);
+    int res = _find_and_validate_by_signal(context, sig, vsd_uint8);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.u8 = val;
+    ((vsd_signal_leaf_t*) sig)->val.u8 = val;
     return 0;
 }
 
 int vsd_set_value_by_path_uint8(vsd_context_t* context, char* path, uint8_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_path(context, path, vsd_uint8, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_uint8, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.u8 = val;
+    ((vsd_signal_leaf_t*) sig)->val.u8 = val;
     return 0;
 }
 
 int vsd_set_value_by_id_uint8(vsd_context_t* context, vsd_id_t id, uint8_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_uint8, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_uint8, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.u8 = val;
+    ((vsd_signal_leaf_t*) sig)->val.u8 = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_int16(vsd_context_t* context, vsd_desc_t* desc, int16_t val)
+int vsd_set_value_by_signal_int16(vsd_context_t* context, vsd_signal_t* sig, int16_t val)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_int16);
+    int res = _find_and_validate_by_signal(context, sig, vsd_int16);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.i16 = val;
+    ((vsd_signal_leaf_t*) sig)->val.i16 = val;
     return 0;
 }
 
 int vsd_set_value_by_path_int16(vsd_context_t* context, char* path, int16_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_path(context, path, vsd_int16, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_int16, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.i16 = val;
+    ((vsd_signal_leaf_t*) sig)->val.i16 = val;
     return 0;
 }
 
 int vsd_set_value_by_id_int16(vsd_context_t* context, vsd_id_t id, int16_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_int16, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_int16, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.i16 = val;
+    ((vsd_signal_leaf_t*) sig)->val.i16 = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_uint16(vsd_context_t* context, vsd_desc_t* desc, uint16_t val)
+int vsd_set_value_by_signal_uint16(vsd_context_t* context, vsd_signal_t* sig, uint16_t val)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_uint16);
+    int res = _find_and_validate_by_signal(context, sig, vsd_uint16);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.u16 = val;
+    ((vsd_signal_leaf_t*) sig)->val.u16 = val;
     return 0;
 }
 
 int vsd_set_value_by_path_uint16(vsd_context_t* context, char* path, uint16_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_path(context, path, vsd_uint16, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_uint16, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.u16 = val;
+    ((vsd_signal_leaf_t*) sig)->val.u16 = val;
     return 0;
 }
 
 int vsd_set_value_by_id_uint16(vsd_context_t* context, vsd_id_t id, uint16_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_uint16, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_uint16, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.u16 = val;
+    ((vsd_signal_leaf_t*) sig)->val.u16 = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_int32(vsd_context_t* context, vsd_desc_t* desc, int32_t val)
+int vsd_set_value_by_signal_int32(vsd_context_t* context, vsd_signal_t* sig, int32_t val)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_int32);
+    int res = _find_and_validate_by_signal(context, sig, vsd_int32);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.i32 = val;
+    ((vsd_signal_leaf_t*) sig)->val.i32 = val;
     return 0;
 }
 
 int vsd_set_value_by_path_int32(vsd_context_t* context, char* path, int32_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_path(context, path, vsd_int32, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_int32, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.i32 = val;
+    ((vsd_signal_leaf_t*) sig)->val.i32 = val;
     return 0;
 }
 
 int vsd_set_value_by_id_int32(vsd_context_t* context, vsd_id_t id, int32_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_int32, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_int32, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.i32 = val;
+    ((vsd_signal_leaf_t*) sig)->val.i32 = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_uint32(vsd_context_t* context, vsd_desc_t* desc, uint32_t val)
+int vsd_set_value_by_signal_uint32(vsd_context_t* context, vsd_signal_t* sig, uint32_t val)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_uint32);
+    int res = _find_and_validate_by_signal(context, sig, vsd_uint32);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.u32 = val;
+    ((vsd_signal_leaf_t*) sig)->val.u32 = val;
     return 0;
 }
 
 int vsd_set_value_by_path_uint32(vsd_context_t* context, char* path, uint32_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_path(context, path, vsd_uint32, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_uint32, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.u32 = val;
+    ((vsd_signal_leaf_t*) sig)->val.u32 = val;
     return 0;
 }
 
 int vsd_set_value_by_id_uint32(vsd_context_t* context, vsd_id_t id, uint32_t val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_uint32, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_uint32, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.u32 = val;
+    ((vsd_signal_leaf_t*) sig)->val.u32 = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_float(vsd_context_t* context, vsd_desc_t* desc, float val)
+int vsd_set_value_by_signal_float(vsd_context_t* context, vsd_signal_t* sig, float val)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_float);
+    int res = _find_and_validate_by_signal(context, sig, vsd_float);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.f = val;
+    ((vsd_signal_leaf_t*) sig)->val.f = val;
     return 0;
 }
 
 int vsd_set_value_by_path_float(vsd_context_t* context, char* path, float val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_path(context, path, vsd_float, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_float, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.f = val;
+    ((vsd_signal_leaf_t*) sig)->val.f = val;
     return 0;
 }
 
 int vsd_set_value_by_id_float(vsd_context_t* context, vsd_id_t id, float val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_float, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_float, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.f = val;
+    ((vsd_signal_leaf_t*) sig)->val.f = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_double(vsd_context_t* context, vsd_desc_t* desc, double val)
+int vsd_set_value_by_signal_double(vsd_context_t* context, vsd_signal_t* sig, double val)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_float);
+    int res = _find_and_validate_by_signal(context, sig, vsd_float);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.f = val;
+    ((vsd_signal_leaf_t*) sig)->val.f = val;
     return 0;
 }
 
 int vsd_set_value_by_path_double(vsd_context_t* context, char* path, double val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_path(context, path, vsd_double, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_path(context, path, vsd_double, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.d = val;
+    ((vsd_signal_leaf_t*) sig)->val.d = val;
     return 0;
 }
 
 int vsd_set_value_by_id_double(vsd_context_t* context, vsd_id_t id, double val)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_double, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_double, &sig);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val.d = val;
+    ((vsd_signal_leaf_t*) sig)->val.d = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_string(vsd_context_t* context, vsd_desc_t* desc, char* data, int len)
+int vsd_set_value_by_signal_string(vsd_context_t* context, vsd_signal_t* sig, char* data, int len)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_string);
+    int res = _find_and_validate_by_signal(context, sig, vsd_string);
     vsd_data_u val;
 
     if (res)
         return res;
 
 
-    res = vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+    res = vsd_data_copy(&((vsd_signal_leaf_t*) sig)->val,
                         &val,
-                        desc->data_type);
+                        sig->data_type);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val = val;
+    ((vsd_signal_leaf_t*) sig)->val = val;
     return 0;
 }
 
 int vsd_set_value_by_path_string(vsd_context_t* context, char* path, char* data, int len)
 {
-    vsd_desc_t* desc = 0;
+    vsd_signal_t* sig = 0;
     vsd_data_u val;
-    int res = _find_and_validate_by_path(context, path, vsd_string, &desc);
+    int res = _find_and_validate_by_path(context, path, vsd_string, &sig);
 
     if (res)
         return res;
 
-    res = vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+    res = vsd_data_copy(&((vsd_signal_leaf_t*) sig)->val,
                         &val,
-                        desc->data_type);
+                        sig->data_type);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val = val;
+    ((vsd_signal_leaf_t*) sig)->val = val;
 
     return 0;
 }
@@ -1454,8 +1462,8 @@ int vsd_set_value_by_path_string(vsd_context_t* context, char* path, char* data,
 int vsd_set_value_by_id_string(vsd_context_t* context, vsd_id_t id, char* data, int len)
 {
     vsd_data_u val;
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_string, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_string, &sig);
 
     if (res)
         return res;
@@ -1463,74 +1471,74 @@ int vsd_set_value_by_id_string(vsd_context_t* context, vsd_id_t id, char* data, 
     if (res)
         return res;
 
-    res = vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+    res = vsd_data_copy(&((vsd_signal_leaf_t*) sig)->val,
                         &val,
-                        desc->data_type);
+                        sig->data_type);
 
     if (res)
         return res;
 
-    ((vsd_desc_leaf_t*) desc)->val = val;
+    ((vsd_signal_leaf_t*) sig)->val = val;
 
     return 0;
 }
 
 
-int vsd_set_value_by_desc_convert(vsd_context_t* context, vsd_desc_t* desc, char* value)
+int vsd_set_value_by_signal_convert(vsd_context_t* context, vsd_signal_t* sig, char* value)
 {
-    int res = _find_and_validate_by_desc(context, desc, vsd_na);
+    int res = _find_and_validate_by_signal(context, sig, vsd_na);
     vsd_data_u val;
 
     if (res)
         return res;
 
-    res = vsd_string_to_data(desc->data_type, value, &val);
+    res = vsd_string_to_data(sig->data_type, value, &val);
     if (res)
         return res;
 
-    return vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+    return vsd_data_copy(&((vsd_signal_leaf_t*) sig)->val,
                         &val,
-                        desc->data_type);
+                        sig->data_type);
 }
 
 int vsd_set_value_by_path_convert(vsd_context_t* context, char* path, char* value)
 {
-    vsd_desc_t* desc = 0;
+    vsd_signal_t* sig = 0;
     vsd_data_u val;
-    int res = _find_and_validate_by_path(context, path, vsd_na, &desc);
+    int res = _find_and_validate_by_path(context, path, vsd_na, &sig);
 
     if (res)
         return res;
 
-    res = vsd_string_to_data(desc->data_type, value, &val);
+    res = vsd_string_to_data(sig->data_type, value, &val);
 
     if (res)
         return res;
 
-    return vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+    return vsd_data_copy(&((vsd_signal_leaf_t*) sig)->val,
                         &val,
-                        desc->data_type);
+                        sig->data_type);
 
     return 0;
 }
 
 int vsd_set_value_by_id_convert(vsd_context_t* context, vsd_id_t id, char* value)
 {
-    vsd_desc_t* desc = 0;
-    int res = _find_and_validate_by_id(context, id, vsd_na, &desc);
+    vsd_signal_t* sig = 0;
+    int res = _find_and_validate_by_id(context, id, vsd_na, &sig);
     vsd_data_u val;
 
     if (res)
         return res;
 
-    res = vsd_string_to_data(desc->data_type, value, &val);
+    res = vsd_string_to_data(sig->data_type, value, &val);
 
     if (res)
         return res;
 
-    return vsd_data_copy(&((vsd_desc_leaf_t*) desc)->val,
+    return vsd_data_copy(&((vsd_signal_leaf_t*) sig)->val,
                         &val,
-                        desc->data_type);
+                        sig->data_type);
 
 }
 
