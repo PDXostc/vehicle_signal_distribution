@@ -5,7 +5,7 @@ setup.py file for VSD SWIG
 from distutils.core import setup, Extension
 
 setup (name = 'vsd',
-       version = '0.1',
+       version=os.environ['VERSION'],
        author      = "SWIG Docs",
        description = """SWIG wrapper for VSD.""",
        py_modules = [ 'vsd', 'vsd_swig' ],
