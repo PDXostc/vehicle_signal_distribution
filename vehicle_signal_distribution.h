@@ -6,8 +6,11 @@
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
 //
 
+#ifndef __VEHICLE_SIGNAL_DISTRIBUTION_H__
+#define __VEHICLE_SIGNAL_DISTRIBUTION_H__
 #include <stdint.h>
 #include <rmc_list.h>
+
 
 typedef enum _vsd_data_type_e {
     vsd_int8 = 0,
@@ -319,3 +322,4 @@ extern vsd_data_u vsd_min(vsd_signal_t* sig);
 
 // Return the maximum allowed value to the signal, if specified
 extern vsd_data_u vsd_max(vsd_signal_t* sig);
+#endif // __VEHICLE_SIGNAL_DISTRIBUTION_H__

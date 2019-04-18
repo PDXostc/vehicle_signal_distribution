@@ -6,10 +6,15 @@
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
 //
 
+
+
+#ifndef __VSD_INTERNAL_H__
+#define __VSD_INTERNAL_H__
 #include <stdint.h>
 #include <rmc_list.h>
 #include "uthash.h"
-#include "dstc.h"
+#include <dstc.h>
+#include "vehicle_signal_distribution.h"
 
 #define vsd_data_u_nil ({ vsd_data_u res = {0}; res; })
 
@@ -128,3 +133,4 @@ extern int vsd_unsubscribe(vsd_context_t* ctx,
                            vsd_subscriber_cb_t callback);
 extern void signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg);
 extern int vsd_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg);
+#endif // __VSD_INTERNAL_H__
