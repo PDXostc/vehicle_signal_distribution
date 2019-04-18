@@ -6,7 +6,7 @@ NAME=vsd
 
 DESTDIR ?= /usr/local
 
-INCLUDE=vehicle_signal_distribution.h vsd_internal.h
+INCLUDE=vehicle_signal_distribution.h vsd_internal.h uthash.h
 
 SHARED_OBJ=vsd.o vsd_csv.o
 
@@ -29,6 +29,9 @@ $(TARGET_SO): $(SHARED_OBJ)
 
 # Recompile everything if dstc.h changes
 $(SHARED_OBJ): $(INCLUDE)
+
+.c.o:
+	$(CC) -c $(CFLAGSLIST) $^
 
 clean:
 	rm -f   *~ $(SHARED_OBJ) $(TARGET_SO)
