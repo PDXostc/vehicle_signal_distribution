@@ -2,6 +2,8 @@
 setup.py file for VSD SWIG
 """
 
+import setuptools
+import os
 from distutils.core import setup, Extension
 
 setup (name = 'vsd',
