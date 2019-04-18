@@ -37,7 +37,7 @@ void usage(char* prog)
 
 int main(int argc, char* argv[])
 {
-    vsd_desc_t* desc;
+    vsd_signal_t* desc;
     vsd_context_t* ctx = 0;
     int res;
     char opt = 0;
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
 
         case 'p':
             fprintf(stderr, "Publishing %s\n", optarg);
-            res = vsd_find_desc_by_path(ctx, 0, optarg, &desc);
+            res = vsd_find_signal_by_path(ctx, 0, optarg, &desc);
             if (res) {
                 fprintf(stderr, "Could not use publish path %s: %s\n", optarg, strerror(res));
                 exit(255);

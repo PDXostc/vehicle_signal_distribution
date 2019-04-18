@@ -9,7 +9,7 @@
 #include "dstc.h"
 #include "vehicle_signal_distribution.h"
 
-void dump_desc(vsd_desc_t* elem)
+void dump_desc(vsd_signal_t* elem)
 {
     if (vsd_elem_type(elem) == vsd_branch) {
         printf("FATAL: Tried to print branch: %u:%s", vsd_id(elem), vsd_name(elem));
@@ -66,11 +66,11 @@ void dump_desc(vsd_desc_t* elem)
     return;
 }
 
-void signal_sub(vsd_context_t* ctx,vsd_desc_list_t* list)
+void signal_sub(vsd_context_t* ctx,vsd_signal_list_t* list)
 {
-    vsd_desc_list_for_each(list,
+    vsd_signal_list_for_each(list,
                            lambda(uint8_t,
-                                  (vsd_desc_node_t* node, void* _ud) {
+                                  (vsd_signal_node_t* node, void* _ud) {
                                       dump_desc(node->data);
                                       return 1;
                                   }), 0);
@@ -80,7 +80,7 @@ void signal_sub(vsd_context_t* ctx,vsd_desc_list_t* list)
 
 int main(int argc, char* argv[])
 {
-    vsd_desc_t* desc = 0;
+    vsd_signal_t* desc = 0;
     vsd_context_t* ctx = 0;
     int res = 0;
 
@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
 
     // Find the signal descriptor we want to subscribe to
     // Descriptor can be anywhere in the signal tree. Branch or signal
-    res = vsd_find_desc_by_path(ctx, 0, argv[2], &desc);
+    res = vsd_find_signal_by_path(ctx, 0, argv[2], &desc);
     if (res) {
         printf("Cannot find signal %s: %s\n", argv[2], strerror(res));
         exit(255);
