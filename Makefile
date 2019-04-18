@@ -4,9 +4,6 @@
 
 NAME=vsd
 
-DSTC_VERSION=1.2
-DSTC_DIR=dstc-${DSTC_VERSION}
-
 DESTDIR ?= /usr/local
 
 INCLUDE=vehicle_signal_distribution.h vsd_internal.h
@@ -15,10 +12,12 @@ SHARED_OBJ=vsd.o vsd_csv.o
 
 TARGET_SO=libvsd.so
 
-CFLAGS= -g -Wall -I/usr/local -fPIC
+CFLAGSLIST= -g -Wall -I/usr/local -fPIC $(CFLAGS) $(CPPFLAGS)
 LFLAGS= -L/usr/lib -ldstc -lrmc
 
 .PHONY: all clean install nomacro uninstall examples install_examples
+
+export CFLAGSLIST
 
 all: $(TARGET_SO)
 
@@ -26,7 +25,7 @@ nomacro:
 	$(MAKE) -C examples nomacro
 
 $(TARGET_SO): $(SHARED_OBJ)
-	$(CC) --shared $(CFLAGS) $^ $(LFLAGS) -o $@
+	$(CC) --shared $(CFLAGSLIST) $^ $(LFLAGS) -o $@
 
 # Recompile everything if dstc.h changes
 $(SHARED_OBJ): $(INCLUDE)
