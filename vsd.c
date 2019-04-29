@@ -114,6 +114,7 @@ static int encode_signal(vsd_signal_t* sig, uint8_t* buf, int buf_sz, int* len)
 {
     vsd_signal_leaf_t* l_signal = 0;
 
+    *len = 0;
     if (sig->elem_type == vsd_branch) {
         int rec_res = 0;
         vsd_signal_branch_t* br_signal = (vsd_signal_branch_t*) sig;
@@ -1050,8 +1051,10 @@ static int _find_and_validate_by_signal(vsd_context_t* context,
     }
 
     if (type != vsd_na && sig->data_type != type) {
-        RMC_LOG_WARNING("Signal ID %u is %s, not boolean.",
-                        sig->id, vsd_data_type_to_string(sig->data_type));
+        RMC_LOG_WARNING("Signal ID %u is %s, not the requested %s.",
+                        sig->id,
+                        vsd_data_type_to_string(sig->data_type),
+                        vsd_data_type_to_string(type));
         return EINVAL;
     }
 
@@ -1383,12 +1386,12 @@ int vsd_set_value_by_id_float(vsd_context_t* context, vsd_id_t id, float val)
 
 int vsd_set_value_by_signal_double(vsd_context_t* context, vsd_signal_t* sig, double val)
 {
-    int res = _find_and_validate_by_signal(context, sig, vsd_float);
+    int res = _find_and_validate_by_signal(context, sig, vsd_double);
 
     if (res)
         return res;
 
-    ((vsd_signal_leaf_t*) sig)->val.f = val;
+    ((vsd_signal_leaf_t*) sig)->val.d = val;
     return 0;
 }
 
