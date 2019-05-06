@@ -651,7 +651,8 @@ int vsd_find_signal_by_path(vsd_context_t* context,
         vsd_signal_list_for_each(&((vsd_signal_branch_t*) root_signal)->children,
                                        lambda(uint8_t,
                                               (vsd_signal_node_t* node, void* _ud) {
-                                                  if (!strncmp(path, node->data->name, path_len)) {
+                                                  if (!strncmp(path, node->data->name, path_len) &&
+                                                      strlen(node->data->name) == path_len) {
                                                       loc_res = node->data;
                                                       return 0;
                                                   }
