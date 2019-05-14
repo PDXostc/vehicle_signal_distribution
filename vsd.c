@@ -433,7 +433,7 @@ void vsd_signal_transmit(vsd_id_t id, dstc_dynamic_data_t dynarg)
 
     RMC_LOG_INFO("Got signal %u", id);
     if (!_current_context) {
-        RMC_LOG_FATAL("Please call dstc_set_active_context() before receiving signals.");
+        RMC_LOG_FATAL("Please call vsd_set_active_context() before receiving signals.");
         exit(255);
     }
 
