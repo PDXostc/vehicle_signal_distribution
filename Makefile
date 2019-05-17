@@ -6,13 +6,12 @@ NAME=vsd
 
 DESTDIR ?= /usr/local
 
-INCLUDE=vehicle_signal_distribution.h vsd_internal.h uthash.h
+INCLUDE=vehicle_signal_distribution.h
 
-SHARED_OBJ=vsd.o vsd_csv.o
-
+SHARED_OBJ=vsd.o
 TARGET_SO=libvsd.so
 
-CFLAGSLIST= -g -Wall -I/usr/local -fPIC $(CFLAGS) $(CPPFLAGS)
+CFLAGSLIST= -ggdb -Wall -I/usr/local -fPIC $(CFLAGS) $(CPPFLAGS)
 
 .PHONY: all clean install nomacro uninstall examples install_examples
 
@@ -42,12 +41,10 @@ install:
 	install -d ${DESTDIR}/share
 	install -m 0644 ${TARGET_SO} ${DESTDIR}/lib
 	install -m 0644 ${INCLUDE} ${DESTDIR}/include
-	install -m 0644 vss_rel_*.csv ${DESTDIR}/share
 
 uninstall:
-	rm -f ${DESTDIR}/share/vss_rel_*.csv
 	rm -f ${DESTDIR}/lib/${TARGET_SO}
-	rm -f ${DESTDIR}/include/${INCLUDE}
+	(cd ${DESTDIR}/include; rm -f ${INCLUDE})
 
 examples:
 	$(MAKE) -C examples
