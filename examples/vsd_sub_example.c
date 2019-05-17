@@ -9,55 +9,60 @@
 #include "dstc.h"
 #include "vehicle_signal_distribution.h"
 
-void dump_desc(vsd_signal_t* elem)
+void dump_desc(vss_signal_t* elem)
 {
-    if (vsd_elem_type(elem) == vsd_branch) {
-        printf("FATAL: Tried to print branch: %u:%s", vsd_id(elem), vsd_name(elem));
+    vsd_data_u val;
+
+    if (elem->element_type == VSS_BRANCH) {
+        printf("FATAL: Tried to print branch: %s", vsd_signal_to_path_static(elem));
         exit(255);
     }
 
-    printf("%s - %u:%s:%s -> ",
-           vsd_name(elem),
-           vsd_id(elem),
-           vsd_elem_type_to_string(vsd_elem_type(elem)),
-           vsd_data_type_to_string(vsd_data_type(elem)));
+    vsd_get_value(elem, &val);
 
-    switch(vsd_data_type(elem)) {
-    case vsd_int8:
-        printf("%d\n", vsd_value(elem).i8 & 0xFF);
+    printf("%s - %s:%s -> ",
+           elem->name,
+           vss_element_type_string(elem->element_type),
+           vss_data_type_string(elem->data_type));
+
+
+    // data_type is the same as sig->data_type
+    switch(elem->data_type) {
+    case VSS_INT8:
+        printf("%d\n", val.i8 & 0xFF);
         break;
-    case vsd_int16:
-        printf("%d\n", vsd_value(elem).i16 & 0xFFFF);
+    case VSS_INT16:
+        printf("%d\n", val.i16 & 0xFFFF);
         break;
-    case vsd_int32:
-        printf("%d\n", vsd_value(elem).i32);
+    case VSS_INT32:
+        printf("%d\n", val.i32);
         break;
-    case vsd_uint8:
-        printf("%u\n", vsd_value(elem).u8 & 0xFF);
+    case VSS_UINT8:
+        printf("%u\n", val.u8 & 0xFF);
         break;
-    case vsd_uint16:
-        printf("%u\n", vsd_value(elem).u16 & 0xFFFF);
+    case VSS_UINT16:
+        printf("%u\n", val.u16 & 0xFFFF);
         break;
-    case vsd_uint32:
-        printf("%u\n", vsd_value(elem).u32);
+    case VSS_UINT32:
+        printf("%u\n", val.u32);
         break;
-    case vsd_double:
-        printf("%f\n", vsd_value(elem).d);
+    case VSS_DOUBLE:
+        printf("%f\n", val.d);
         break;
-    case vsd_float:
-        printf("%f\n", vsd_value(elem).f);
+    case VSS_FLOAT:
+        printf("%f\n", val.f);
         break;
-    case vsd_boolean:
-        printf("%s\n", vsd_value(elem).b?"true":"false");
+    case VSS_BOOLEAN:
+        printf("%s\n", val.b?"true":"false");
         break;
 
-    case vsd_string:
-        if (vsd_value(elem).s.len)
-            puts(vsd_value(elem).s.data);
+    case VSS_STRING:
+        if (val.s.len)
+            puts(val.s.data);
         else
             puts("[nil]");
         break;
-    case vsd_na:
+    case VSS_NA:
         printf("[n/a]\n");
         break;
     default:
@@ -80,41 +85,28 @@ void signal_sub(vsd_context_t* ctx,vsd_signal_list_t* list)
 
 int main(int argc, char* argv[])
 {
-    vsd_signal_t* desc = 0;
-    vsd_context_t* ctx = 0;
+    vss_signal_t* sig = 0;
     int res = 0;
 
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <signal_desc.csv> <signal-path>\n", argv[0]);
-        fprintf(stderr, "Example: %s vss_rel_2.0.0-alpha+005.csv Vehicle.Drivetrain.InternalCombustionEngine\n", argv[0]);
-        fprintf(stderr, "Signal descriptor CSV file is installed in the share directory under the\n");
-        fprintf(stderr, "top-level installation directory.\n");
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <signal-path>\n", argv[0]);
+        fprintf(stderr, "Example: %s Vehicle.Drivetrain.InternalCombustionEngine\n", argv[0]);
         exit(255);
     }
 
 
-    vsd_context_create(&ctx);
-    // Load descriptor file
-    res = vsd_load_from_file(ctx, argv[1]);
-
-    if (res) {
-        printf("Cannot load file %s: %s\n", argv[1], strerror(res));
-        exit(255);
-    }
-
-
-    // Find the signal descriptor we want to subscribe to
-    // Descriptor can be anywhere in the signal tree. Branch or signal
-    res = vsd_find_signal_by_path(ctx, 0, argv[2], &desc);
+    // Find the signal sigriptor we want to subscribe to
+    // Sigriptor can be anywhere in the signal tree. Branch or signal
+    res = vss_get_signal_by_path(argv[1], &sig);
     if (res) {
         printf("Cannot find signal %s: %s\n", argv[2], strerror(res));
         exit(255);
     }
 
     // Subscribe to the signal
-    res = vsd_subscribe(ctx, desc, signal_sub);
+    res = vsd_subscribe(0, sig, signal_sub);
     if (res) {
-        printf("Cannot subscribe to signal %s: %s\n", argv[2], strerror(res));
+        printf("Cannot subscribe to signal %s: %s\n", argv[1], strerror(res));
         exit(255);
     }
 
