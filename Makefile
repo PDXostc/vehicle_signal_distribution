@@ -12,11 +12,9 @@ SHARED_OBJ=vsd.o vsd_csv.o
 
 TARGET_SO=libvsd.so
 
-CFLAGSLIST= -g -Wall -I/usr/local -fPIC $(CFLAGS) $(CPPFLAGS)
+CFLAGS?= -g -Wall -I/usr/local -fPIC
 
 .PHONY: all clean install nomacro uninstall examples install_examples
-
-export CFLAGSLIST
 
 all: $(TARGET_SO)
 
@@ -24,13 +22,13 @@ nomacro:
 	$(MAKE) -C examples nomacro
 
 $(TARGET_SO): $(SHARED_OBJ)
-	$(CC) --shared $(CFLAGSLIST) $^ $(LDFLAGS) -o $@
+	$(CC) --shared $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 # Recompile everything if dstc.h changes
 $(SHARED_OBJ): $(INCLUDE)
 
 .c.o:
-	$(CC) -c $(CFLAGSLIST) $^
+	$(CC) -c $(CFLAGS) $^
 
 clean:
 	rm -f   *~ $(SHARED_OBJ) $(TARGET_SO)
