@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include "vehicle_signal_distribution.h"
 #include "dstc.h"
-
+#include <getopt.h>
 void usage(char* prog)
 {
         fprintf(stderr, "Usage: %s-p <signal->path> -s:<signal-path:value> ...\n", prog);
@@ -38,12 +38,12 @@ int main(int argc, char* argv[])
     char opt = 0;
     char sig_path[1024];
     char *val;
+    msec_timestamp_t stop_ts = 0;
 
     if (argc == 1)
         usage(argv[0]);
 
 
-    optind = 1;
     while ((opt = getopt(argc, argv, "s:p:")) != -1) {
         switch (opt) {
 
@@ -83,8 +83,12 @@ int main(int argc, char* argv[])
         exit(255);
     }
 
-    // Ensure that the pub-sub relationships have been setup
-    dstc_process_events(400000);
+
+    dstc_setup();
+
+    stop_ts = dstc_msec_monotonic_timestamp() + 400;
+    while(dstc_msec_monotonic_timestamp() < stop_ts)
+        dstc_process_events(stop_ts - dstc_msec_monotonic_timestamp());
 
     // Send publish command to update
     res = vsd_publish(sig);
@@ -93,7 +97,6 @@ int main(int argc, char* argv[])
         printf("Cannot publish signal %s %s\n", argv[2], strerror(res));
         exit(255);
     }
-
-    // Process signals for another 100 msec to ensure that the call gets out.
-    dstc_process_events(100000);
+    dstc_process_pending_events();
+    exit(0);
 }

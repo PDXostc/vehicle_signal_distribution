@@ -15,8 +15,8 @@
 #include <rmc_list_template.h>
 #include <rmc_log.h>
 
-DSTC_CLIENT(vsd_signal_transmit, int,, uint32_t,,  DECL_DYNAMIC_ARG )
-DSTC_SERVER(vsd_signal_transmit, int,, uint32_t,, DECL_DYNAMIC_ARG )
+DSTC_CLIENT(vsd_signal_transmit, int,, uint32_t,, DSTC_DECL_DYNAMIC_ARG )
+DSTC_SERVER(vsd_signal_transmit, int,, uint32_t,, DSTC_DECL_DYNAMIC_ARG )
 
 RMC_LIST_IMPL(vsd_signal_list, vsd_signal_node, vss_signal_t*)
 RMC_LIST_IMPL(vsd_subscriber_list, vsd_subscriber_node, vsd_subscriber_cb_t)
@@ -259,7 +259,7 @@ static int encode_signal(vss_signal_t* sig, uint8_t* buf, int buf_sz, int* len)
 // The value will be stored in the signal tree hanging under
 // context.
 static int decode_signal(vsd_context_t* ctx,
-                         uint8_t* buf, int buf_sz,
+                         const uint8_t* buf, int buf_sz,
                          vsd_signal_list_t* res_lst)
 {
     int index;
@@ -437,7 +437,7 @@ int vsd_publish(vss_signal_t* sig)
         _vss_signature = strtoul(buf, 0, 0);
     }
 
-    return dstc_vsd_signal_transmit(sig->index, _vss_signature, DYNAMIC_ARG(buf, len));
+    return dstc_vsd_signal_transmit(sig->index, _vss_signature, DSTC_DYNAMIC_ARG(buf, len));
 }
 
 
@@ -485,7 +485,7 @@ void vsd_signal_transmit(int index, uint32_t vss_signature, dstc_dynamic_data_t 
     // upward and invoke subscribers.
     current = sig;
     while(current) {
-        vsd_subscriber_list_for_each(vsd_subscribers(sig),
+        vsd_subscriber_list_for_each(vsd_subscribers(current),
                                      lambda(uint8_t,
                                             (vsd_subscriber_node_t* node, void* _ud) {
                                                 (*node->data)(0, &res_lst);

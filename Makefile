@@ -12,7 +12,7 @@ SHARED_OBJ=vsd.o
 TARGET_SO=libvsd.so
 
 CFLAGSLIST= -ggdb -Wall -I/usr/local -fPIC $(CFLAGS) $(CPPFLAGS)
-LFLAGS= -L/usr/lib -ldstc -lrmc
+LFLAGS=
 
 .PHONY: all clean install nomacro uninstall examples install_examples
 

@@ -9,6 +9,8 @@
 #include "dstc.h"
 #include "vehicle_signal_distribution.h"
 
+int exit_flag = 0;
+\
 void dump_desc(vss_signal_t* elem)
 {
     vsd_data_u val;
@@ -73,12 +75,15 @@ void dump_desc(vss_signal_t* elem)
 
 void signal_sub(vsd_context_t* ctx,vsd_signal_list_t* list)
 {
+    puts("Got signal");
     vsd_signal_list_for_each(list,
                            lambda(uint8_t,
                                   (vsd_signal_node_t* node, void* _ud) {
                                       dump_desc(node->data);
                                       return 1;
                                   }), 0);
+    puts("----\n");
+    exit_flag = 1;
 
 }
 
@@ -99,7 +104,7 @@ int main(int argc, char* argv[])
     // Sigriptor can be anywhere in the signal tree. Branch or signal
     res = vss_get_signal_by_path(argv[1], &sig);
     if (res) {
-        printf("Cannot find signal %s: %s\n", argv[2], strerror(res));
+        printf("Cannot find signal %s: %s\n", argv[1], strerror(res));
         exit(255);
     }
 
@@ -111,5 +116,6 @@ int main(int argc, char* argv[])
     }
 
     // Process incoming events forever.
-    dstc_process_events(-1);
+     while(exit_flag == 0)
+        dstc_process_events(-1);
 }

@@ -33,11 +33,9 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
-CFLAGS= -g -Wall -I/usr/local -fPIC -I../
+LFLAGS= -L/usr/local/lib -lvss-jlr-0.0.5-3-g61c2dc3 -ldstc -lrmc
 
-LFLAGS= -L/usr/local/lib -L/usr/lib -lvss-jlr-0.0.5-3-g61c2dc3 -ldstc -lrmc
-
-CFLAGS+= -g -Wall -I../
+CFLAGS+= -ggdb -Wall -I../ -I/usr/local
 
 .PHONY: all clean install
 
