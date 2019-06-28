@@ -4,7 +4,7 @@ DESTDIR ?= /usr/local
 
 INCLUDE=../vehicle_signal_distribution.h
 
-SHARED_OBJ=../vsd.o ../vsd_csv.o
+SHARED_OBJ=../vsd.o
 
 #TARGET_SO=libvsd.so
 
@@ -33,10 +33,9 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
-CFLAGS= -g -Wall -I/usr/local -fPIC
-LFLAGS= -L/usr/lib -ldstc -lrmc
+LFLAGS= -L/usr/local/lib -lvss-jlr-0.0.5-3-g61c2dc3 -ldstc -lrmc
 
-CFLAGS+= -g -Wall
+CFLAGS+= -ggdb -Wall -I../ -I/usr/local
 
 .PHONY: all clean install
 
@@ -81,4 +80,3 @@ $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} /usr/local/include/dstc.h
 
 $(SERVER_NOMACRO_SOURCE): ${SERVER_SOURCE} /usr/local/include/dstc.h
 	cpp -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
-
