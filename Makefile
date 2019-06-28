@@ -13,6 +13,7 @@ TARGET_SO=libvsd.so
 
 CFLAGSLIST= -ggdb -Wall -I/usr/local -fPIC $(CFLAGS) $(CPPFLAGS)
 
+
 .PHONY: all clean install nomacro uninstall examples install_examples
 
 export CFLAGSLIST
