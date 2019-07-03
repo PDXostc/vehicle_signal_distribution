@@ -33,9 +33,9 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
-LFLAGS= -L/usr/local/lib -lvss-jlr-0.0.5-3-g61c2dc3 -ldstc -lrmc
+LFLAGS= -L/usr/local/lib -lvss -ldstc -lrmc
 
-CFLAGS+= -ggdb -Wall -I../ -I/usr/local
+CFLAGS?= -ggdb -Wall -I../ -I/usr/local
 
 .PHONY: all clean install
 
@@ -44,11 +44,11 @@ all: $(EXAMPLE_TARGET_SERVER) $(EXAMPLE_TARGET_CLIENT)
 nomacro: $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT)
 
 $(EXAMPLE_TARGET_SERVER): $(SERVER_OBJ) $(SHARED_OBJ)
-	$(CC) $(CFLAGS) $^ $(LFLAGS) -o $@
+	$(CC) $(CFLAGS) $^ $(LFLAGS) -o $@ $(LDFLAGS)
 
 
 $(EXAMPLE_TARGET_CLIENT): $(CLIENT_OBJ) $(SHARED_OBJ)
-	$(CC) $(CFLAGS) $^ $(LFLAGS) -o $@
+	$(CC) $(CFLAGS) $^ $(LFLAGS) -o $@ $(LDFLAGS)
 
 #
 # Recompile server and client if headers change
@@ -69,10 +69,10 @@ install:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ)
-	$(CC) $(CFLAGS) $^ -ldstc -lrmc -lvsd -o $@
+	$(CC) $(CFLAGS) $^ -ldstc -lrmc -lvsd -o $@ $(LDFLAGS)
 
 $(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ)
-	$(CC) $(CFLAGS) $^ -ldstc -lrmc -lvsd -o $@
+	$(CC) $(CFLAGS) $^ -ldstc -lrmc -lvsd -o $@ $(LDFLAGS)
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} /usr/local/include/dstc.h
