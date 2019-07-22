@@ -13,6 +13,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "vehicle_signal_distribution.h"
+#include "vss.h"
+#include "vss_macro.h"
 #include "dstc.h"
 #include <getopt.h>
 void usage(char* prog)
@@ -33,7 +35,7 @@ void usage(char* prog)
 
 int main(int argc, char* argv[])
 {
-    vss_signal_t* sig;
+    vss_signal_t* sig = 0;
     int res;
     char opt = 0;
     char sig_path[1024];
@@ -97,6 +99,6 @@ int main(int argc, char* argv[])
         printf("Cannot publish signal %s %s\n", argv[2], strerror(res));
         exit(255);
     }
-    dstc_process_pending_events();
+    dstc_process_events(0);
     exit(0);
 }

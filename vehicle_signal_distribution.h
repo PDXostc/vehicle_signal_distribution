@@ -10,15 +10,11 @@
 #define __VEHICLE_SIGNAL_DISTRIBUTION_H__
 #include <stdint.h>
 #include <rmc_list.h>
-// Vehicle Signal Specification is available at
-// github.com/GENIVI/vehicle_signal_specification
-//
-// A build of that repo will generate a .h and .c file
-// that VSD needs to include and link against.
-//
-// This include file also has a lot of signal definitionaccess
-// functions such as converting a signal to a string path.
+
+// From
+// github.com/GENIVI/vehicle_signal_specification/tree/master/tools/vspec2c
 #include <vehicle_signal_specification.h>
+
 
 typedef union _vsd_data_u {
     int8_t i8;
@@ -41,7 +37,7 @@ typedef union _vsd_data_u {
 
 typedef struct vsd_context vsd_context_t;
 
-RMC_LIST(vsd_signal_list, vsd_signal_node, vss_signal_t*)
+RMC_LIST(vsd_signal_list, vsd_signal_node, struct _vss_signal_t*)
 typedef vsd_signal_list vsd_signal_list_t;
 typedef vsd_signal_node vsd_signal_node_t;
 typedef void (*vsd_subscriber_cb_t)(vsd_context_t*, vsd_signal_list_t*);
@@ -51,17 +47,17 @@ typedef vsd_subscriber_list vsd_subscriber_list_t;
 typedef vsd_subscriber_node vsd_subscriber_node_t;
 
 // Get the current value of a signal
-extern int vsd_get_value(vss_signal_t* sig,
+extern int vsd_get_value(struct _vss_signal_t* sig,
                          vsd_data_u *result);
 
 // Convert an arbitrary string to a vsd_data_u element.
-extern int vsd_string_to_data(vss_data_type_e type,
+extern int vsd_string_to_data(enum _vss_data_type_e type,
                               char* str,
                               vsd_data_u* res);
 
 // Return the current signal's path as a static variable
 // Do not modify the content of the returned string.
-extern const char* vsd_signal_to_path_static(vss_signal_t* sig);
+extern const char* vsd_signal_to_path_static(struct _vss_signal_t* sig);
 
 // Set the boolean value of a signal identified by its pointer
 //
@@ -77,7 +73,7 @@ extern const char* vsd_signal_to_path_static(vss_signal_t* sig);
 // FIXME: Validate that val is not greater than maximum allowed value, if specified.
 // FIXME: Validate that val is not less than minimum allowed value, if specified.
 
-extern int vsd_set_value_by_signal_boolean(vsd_context_t* context, vss_signal_t* sig, uint8_t val);
+extern int vsd_set_value_by_signal_boolean(vsd_context_t* context, struct _vss_signal_t* sig, uint8_t val);
 
 // Set the boolean value of a signal identified by its path.
 // Path is the dot-separated path specified by the Vehicle Signal Specification
@@ -103,45 +99,45 @@ extern int vsd_set_value_by_path_boolean(vsd_context_t* context, char* path, uin
 //  EINVAL - Signal is not an uint8_t
 extern int vsd_set_value_by_index_boolean(vsd_context_t* context, int index, uint8_t val);
 
-extern int vsd_set_value_by_signal_int8(vsd_context_t* context, vss_signal_t* sig, int8_t val);
+extern int vsd_set_value_by_signal_int8(vsd_context_t* context, struct _vss_signal_t* sig, int8_t val);
 extern int vsd_set_value_by_path_int8(vsd_context_t* context, char* path, int8_t val);
 extern int vsd_set_value_by_index_int8(vsd_context_t* context, int index, int8_t val);
 
-extern int vsd_set_value_by_signal_uint8(vsd_context_t* context, vss_signal_t* sig, uint8_t val);
+extern int vsd_set_value_by_signal_uint8(vsd_context_t* context, struct _vss_signal_t* sig, uint8_t val);
 extern int vsd_set_value_by_path_uint8(vsd_context_t* context, char* path, uint8_t val);
 extern int vsd_set_value_by_index_uint8(vsd_context_t* context, int index, uint8_t val);
 
-extern int vsd_set_value_by_signal_int16(vsd_context_t* context, vss_signal_t* sig, int16_t val);
+extern int vsd_set_value_by_signal_int16(vsd_context_t* context, struct _vss_signal_t* sig, int16_t val);
 extern int vsd_set_value_by_path_int16(vsd_context_t* context, char* path, int16_t val);
 extern int vsd_set_value_by_index_int16(vsd_context_t* context, int index, int16_t val);
 
-extern int vsd_set_value_by_signal_uint16(vsd_context_t* context, vss_signal_t* sig, uint16_t val);
+extern int vsd_set_value_by_signal_uint16(vsd_context_t* context, struct _vss_signal_t* sig, uint16_t val);
 extern int vsd_set_value_by_path_uint16(vsd_context_t* context, char* path, uint16_t val);
 extern int vsd_set_value_by_index_uint16(vsd_context_t* context, int index, uint16_t val);
 
-extern int vsd_set_value_by_signal_int32(vsd_context_t* context, vss_signal_t* sig, int32_t val);
+extern int vsd_set_value_by_signal_int32(vsd_context_t* context, struct _vss_signal_t* sig, int32_t val);
 extern int vsd_set_value_by_path_int32(vsd_context_t* context, char* path, int32_t val);
 extern int vsd_set_value_by_index_int32(vsd_context_t* context, int index, int32_t val);
 
-extern int vsd_set_value_by_signal_uint32(vsd_context_t* context, vss_signal_t* sig, uint32_t val);
+extern int vsd_set_value_by_signal_uint32(vsd_context_t* context, struct _vss_signal_t* sig, uint32_t val);
 extern int vsd_set_value_by_path_uint32(vsd_context_t* context, char* path, uint32_t val);
 extern int vsd_set_value_by_index_uint32(vsd_context_t* context, int index, uint32_t val);
 
-extern int vsd_set_value_by_signal_float(vsd_context_t* context, vss_signal_t* sig, float val);
+extern int vsd_set_value_by_signal_float(vsd_context_t* context, struct _vss_signal_t* sig, float val);
 extern int vsd_set_value_by_path_float(vsd_context_t* context, char* path, float val);
 extern int vsd_set_value_by_index_float(vsd_context_t* context, int index, float val);
 
-extern int vsd_set_value_by_signal_double(vsd_context_t* context, vss_signal_t* sig, double val);
+extern int vsd_set_value_by_signal_double(vsd_context_t* context, struct _vss_signal_t* sig, double val);
 extern int vsd_set_value_by_path_double(vsd_context_t* context, char* path, double val);
 extern int vsd_set_value_by_index_double(vsd_context_t* context, int index, double val);
 
-extern int vsd_set_value_by_signal_string(vsd_context_t* context, vss_signal_t* sig, char* data);
+extern int vsd_set_value_by_signal_string(vsd_context_t* context, struct _vss_signal_t* sig, char* data);
 extern int vsd_set_value_by_path_string(vsd_context_t* context, char* path, char* data);
 extern int vsd_set_value_by_index_string(vsd_context_t* context, int index, char* data);
 
 // Convert a literal string ("23.54") to the right type for the signal and
 // set its value to it.
-extern int vsd_set_value_by_signal_convert(vsd_context_t* context, vss_signal_t* sig, char* value);
+extern int vsd_set_value_by_signal_convert(vsd_context_t* context, struct _vss_signal_t* sig, char* value);
 extern int vsd_set_value_by_path_convert(vsd_context_t* context, char* path, char* value);
 extern int vsd_set_value_by_index_convert(vsd_context_t* context, int index, char* value);
 
@@ -149,7 +145,7 @@ extern int vsd_set_value_by_index_convert(vsd_context_t* context, int index, cha
 // Install the full path to sig into a static buf and return it./
 // If the path is longer than 1024 bytes, the string
 // "[signal path too long]" will be returned.
-extern const char* vsd_signal_to_path_static(vss_signal_t* sig);
+extern const char* vsd_signal_to_path_static(struct _vss_signal_t* sig);
 
 // Convert the provided string into a signal data element.
 // The string is converted according to the type specified in 'type'.
@@ -161,14 +157,14 @@ extern const char* vsd_signal_to_path_static(vss_signal_t* sig);
 //  0 - OK
 //  EINVAL - The data type in 'type' is not supported.
 //
-extern int vsd_string_to_data(vss_data_type_e type,
+extern int vsd_string_to_data(enum _vss_data_type_e type,
                               char* str,
                               vsd_data_u* res);
 
 // Publish the signal(s) in sig.
 // If sig is a branch, all signals installed under it will be published atomically.
 // Unchanged values will be published as well.
-extern int vsd_publish(vss_signal_t* sig);
+extern int vsd_publish(struct _vss_signal_t* sig);
 
 // Subscribe to signal updates in sig
 // If sig is a branch, any updates made to a signal under sig will be reported
@@ -176,21 +172,21 @@ extern int vsd_publish(vss_signal_t* sig);
 // If an unchanged value is received, it will still trigger a callback.
 //
 extern int vsd_subscribe(struct vsd_context* ctx,
-                                 vss_signal_t* sig,
+                                 struct _vss_signal_t* sig,
                                  vsd_subscriber_cb_t callback);
 
 // Unsubscribe to a signal previously subscribed to
 extern int vsd_unsubscribe(struct vsd_context* ctx,
-                                   vss_signal_t* sig,
+                                   struct _vss_signal_t* sig,
                                    vsd_subscriber_cb_t callback);
 
 
 // Return the current value of sig.
-extern vsd_data_u vsd_value(vss_signal_t* sig);
+extern vsd_data_u vsd_value(struct _vss_signal_t* sig);
 
 // Return the minimum allowed value to the signal, if specified
-// extern vsd_data_u vsd_min(vss_signal_t* sig);
+// extern vsd_data_u vsd_min(struct _vss_signal_t* sig);
 
 // Return the maximum allowed value to the signal, if specified
-//extern vsd_data_u vsd_max(vss_signal_t* sig);
+//extern vsd_data_u vsd_max(struct _vss_signal_t* sig);
 #endif // __VEHICLE_SIGNAL_DISTRIBUTION_H__
