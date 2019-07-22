@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include "dstc.h"
 #include "vehicle_signal_distribution.h"
+#include "vss.h"
+#include "vss_macro.h"
 
 int exit_flag = 0;
 \

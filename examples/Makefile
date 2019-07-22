@@ -1,11 +1,10 @@
 NAME=vsd
 
 DESTDIR ?= /usr/local
-
 INCLUDE=../vehicle_signal_distribution.h
-
 SHARED_OBJ=../vsd.o
 
+VSS_HDR=vss.h vss_macro.h
 #TARGET_SO=libvsd.so
 
 #
@@ -34,14 +33,13 @@ SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
 LFLAGS= -L/usr/local/lib -lvss -ldstc -lrmc
-
 CFLAGS?= -ggdb -Wall -I../ -I/usr/local
 
 .PHONY: all clean install
 
-all: $(EXAMPLE_TARGET_SERVER) $(EXAMPLE_TARGET_CLIENT)
+all: ${VSS_HDR} $(EXAMPLE_TARGET_SERVER) $(EXAMPLE_TARGET_CLIENT)
 
-nomacro: $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT)
+nomacro: ${VSS_HDR} $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT)
 
 $(EXAMPLE_TARGET_SERVER): $(SERVER_OBJ) $(SHARED_OBJ)
 	$(CC) $(CFLAGS) $^ $(LFLAGS) -o $@ $(LDFLAGS)
@@ -58,7 +56,8 @@ $(CLIENT_OBJ) $(SHARED_OBJ): $(INCLUDE)
 clean:
 	rm -f $(EXAMPLE_TARGET_CLIENT) $(EXAMPLE_TARGET_SERVER) $(SERVER_OBJ) $(CLIENT_OBJ) \
 	$(CLIENT_NOMACRO_OBJ) $(SERVER_NOMACRO_OBJ) $(TARGET_NOMACRO_CLIENT) \
-	$(TARGET_NOMACRO_SERVER) $(CLIENT_NOMACRO_SOURCE) $(SERVER_NOMACRO_SOURCE)
+	$(TARGET_NOMACRO_SERVER) $(CLIENT_NOMACRO_SOURCE) \
+	$(SERVER_NOMACRO_SOURCE) ${VSS_HDR}
 
 install:
 	install -d ${DESTDIR}/bin
@@ -74,9 +73,11 @@ $(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ)
 $(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ)
 	$(CC) $(CFLAGS) $^ -ldstc -lrmc -lvsd -o $@ $(LDFLAGS)
 
-
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} /usr/local/include/dstc.h
 	cpp -E ${CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${CLIENT_NOMACRO_SOURCE}
 
 $(SERVER_NOMACRO_SOURCE): ${SERVER_SOURCE} /usr/local/include/dstc.h
 	cpp -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
+
+${VSS_HDR}:
+	vspec2c.py -I/usr/local/share/vss/ -i:/usr/local/share/vss/VehicleSignalSpecification.id /usr/local/share/vss/VehicleSignalSpecification.vspec ${VSS_HDR}
