@@ -30,7 +30,7 @@ $(TARGET_SO): $(SHARED_OBJ)
 $(SHARED_OBJ): $(INCLUDE)
 
 .c.o:
-	$(CC) -c $(CFLAGSLIST) $^
+	$(CC) -c $(CFLAGSLIST) $<
 
 clean:
 	rm -f   *~ $(SHARED_OBJ) $(TARGET_SO)
