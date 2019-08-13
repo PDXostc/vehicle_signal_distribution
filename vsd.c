@@ -263,7 +263,6 @@ static int decode_signal(vsd_context_t* ctx,
                          vsd_signal_list_t* res_lst)
 {
     int index;
-    int res;
     vss_signal_t* sig = 0;
 
     while(buf_sz) {
@@ -282,8 +281,7 @@ static int decode_signal(vsd_context_t* ctx,
         // If not found then we have a signal definition mismatch between sender
         // and receiver.
         if (!sig) {
-            RMC_LOG_FATAL("Cannot decode signal index %u. Not defined: %s",
-                          index, strerror(res));
+            RMC_LOG_FATAL("Cannot decode signal index %u.", index);
             exit(255);
         }
 
