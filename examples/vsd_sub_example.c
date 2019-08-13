@@ -12,7 +12,7 @@
 #include "vss_macro.h"
 
 int exit_flag = 0;
-\
+
 void dump_desc(vss_signal_t* elem)
 {
     vsd_data_u val;
