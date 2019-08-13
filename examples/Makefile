@@ -5,6 +5,7 @@ INCLUDE=../vehicle_signal_distribution.h
 SHARED_OBJ=../vsd.o
 
 VSS_HDR=vss.h vss_macro.h
+VSS_SPEC_PATH ?= /usr/local/share/vss/
 #TARGET_SO=libvsd.so
 
 #
@@ -80,4 +81,4 @@ $(SERVER_NOMACRO_SOURCE): ${SERVER_SOURCE} /usr/local/include/dstc.h
 	cpp -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
 
 ${VSS_HDR}:
-	vspec2c.py -I/usr/local/share/vss/ -i:/usr/local/share/vss/VehicleSignalSpecification.id /usr/local/share/vss/VehicleSignalSpecification.vspec ${VSS_HDR}
+	vspec2c.py -I${VSS_SPEC_PATH} -i:${VSS_SPEC_PATH}/VehicleSignalSpecification.id ${VSS_SPEC_PATH}/VehicleSignalSpecification.vspec ${VSS_HDR}
