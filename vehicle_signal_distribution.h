@@ -15,6 +15,9 @@
 // github.com/GENIVI/vehicle_signal_specification/tree/master/tools/vspec2c
 #include <vehicle_signal_specification.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef union _vsd_data_u {
     int8_t i8;
@@ -189,4 +192,9 @@ extern vsd_data_u vsd_value(struct _vss_signal_t* sig);
 
 // Return the maximum allowed value to the signal, if specified
 //extern vsd_data_u vsd_max(struct _vss_signal_t* sig);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif // __VEHICLE_SIGNAL_DISTRIBUTION_H__
