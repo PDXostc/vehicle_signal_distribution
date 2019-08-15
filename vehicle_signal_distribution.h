@@ -193,6 +193,17 @@ extern vsd_data_u vsd_value(struct _vss_signal_t* sig);
 // Return the maximum allowed value to the signal, if specified
 //extern vsd_data_u vsd_max(struct _vss_signal_t* sig);
 
+
+// Set user data for ctx.
+//  The provided user data can be retrieved by future calls
+//  to vsd_get_user_data().
+//  Ctx is currently ignored; user data is set globally.
+extern int vsd_set_user_data(vsd_context_t* ctx, void* user_data);
+
+// Retreive user data previously set with vsd_set_user_data().
+//  Ctx is currently ignored; user data is set and retrieved globally.
+extern void* vsd_get_user_data(vsd_context_t* ctx);
+
 #ifdef __cplusplus
 }
 #endif
