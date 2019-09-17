@@ -390,17 +390,22 @@ int vsd_subscribe(vsd_context_t* ctx,
     return 0;
 }
 
+static int _compare_subscribers(vsd_subscriber_cb_t a,
+                                vsd_subscriber_cb_t b,
+                                void* user_data)
+{
+    return a == b;
+}
+
 int vsd_unsubscribe(vsd_context_t* ctx,
                     vss_signal_t* sig,
                     vsd_subscriber_cb_t callback)
 {
     vsd_subscriber_node_t* node = 0;
 
-    node = vsd_subscriber_list_find_node(vsd_subscribers(sig), callback,
-                                         lambda(int, (vsd_subscriber_cb_t a,
-                                                      vsd_subscriber_cb_t b) {
-                                                    return a == b;
-                                                }));
+    node = vsd_subscriber_list_find_node(vsd_subscribers(sig),
+                                         callback,
+                                         _compare_subscribers, 0);
 
     if (!node)
         return ESRCH; // No such subscriber.
@@ -431,11 +436,21 @@ int vsd_publish(vss_signal_t* sig)
     // SHA256 VSS spec signature
     if (!_vss_signature) {
         char buf[5];
-        strncpy(buf, vss_get_sha256_signature(), 4);
+        const char* sha = vss_get_sha256_signature();
+        strncpy(buf, sha, 4);
         _vss_signature = strtoul(buf, 0, 0);
     }
 
     return dstc_vsd_signal_transmit(sig->index, _vss_signature, DSTC_DYNAMIC_ARG(buf, len));
+}
+
+
+static uint8_t _invoke_subscriber(vsd_subscriber_node_t* node, void* user_data)
+{
+    vsd_signal_list_t* res_lst = (vsd_signal_list_t*) user_data;
+
+    (*node->data)(0, res_lst);
+    return 1;
 }
 
 
@@ -459,7 +474,7 @@ void vsd_signal_transmit(int index, uint32_t vss_signature, dstc_dynamic_data_t 
     }
 
     if (vss_signature != _vss_signature) {
-        RMC_LOG_FATAL("VSS signature mismatch. My signature: %X. Their signature: %X");
+        RMC_LOG_FATAL("VSS signature mismatch on signal specification. My signature: %X. Their signature: %X");
         exit(255);
     }
 
@@ -484,11 +499,8 @@ void vsd_signal_transmit(int index, uint32_t vss_signature, dstc_dynamic_data_t 
     current = sig;
     while(current) {
         vsd_subscriber_list_for_each(vsd_subscribers(current),
-                                     lambda(uint8_t,
-                                            (vsd_subscriber_node_t* node, void* _ud) {
-                                                (*node->data)(0, &res_lst);
-                                                return 1;
-                                            }), 0);
+                                     _invoke_subscriber, &res_lst);
+
         current = current->parent;
     }
     vsd_signal_list_empty(&res_lst);
