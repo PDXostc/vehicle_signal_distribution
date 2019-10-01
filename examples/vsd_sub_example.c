@@ -75,15 +75,16 @@ void dump_desc(vss_signal_t* elem)
     return;
 }
 
+static uint8_t _dump_description(vsd_signal_node_t* node, void* _ud) {
+    dump_desc(node->data);
+    return 1;
+}
+
 void signal_sub(vsd_context_t* ctx,vsd_signal_list_t* list)
 {
     puts("Got signal");
-    vsd_signal_list_for_each(list,
-                           lambda(uint8_t,
-                                  (vsd_signal_node_t* node, void* _ud) {
-                                      dump_desc(node->data);
-                                      return 1;
-                                  }), 0);
+    vsd_signal_list_for_each(list, _dump_description, 0);
+
     puts("----\n");
     exit_flag = 1;
 
