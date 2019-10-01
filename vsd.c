@@ -7,16 +7,17 @@
 //
 // Common signal functions
 //
-#include "vehicle_signal_distribution.h"
+#include <vehicle_signal_distribution.h>
 #include <memory.h>
 #include <string.h>
 #include <errno.h>
 #include <dstc.h>
 #include <rmc_list_template.h>
 #include <rmc_log.h>
+#include "uthash.h"
 
-DSTC_CLIENT(vsd_signal_transmit, int,, uint32_t,, DSTC_DECL_DYNAMIC_ARG )
-DSTC_SERVER(vsd_signal_transmit, int,, uint32_t,, DSTC_DECL_DYNAMIC_ARG )
+DSTC_CLIENT(vsd_signal_transmit, uint32_t,, DSTC_DECL_DYNAMIC_ARG )
+DSTC_SERVER(vsd_signal_transmit, uint32_t,, DSTC_DECL_DYNAMIC_ARG )
 
 RMC_LIST_IMPL(vsd_signal_list, vsd_signal_node, vss_signal_t*)
 RMC_LIST_IMPL(vsd_subscriber_list, vsd_subscriber_node, vsd_subscriber_cb_t)
@@ -28,7 +29,6 @@ typedef struct _vsd_user_data_t {
 } vsd_user_data_t;
 
 static void* _user_data = 0;
-static uint32_t _vss_signature = 0;
 
 static int _data_type_size[] =
 {
@@ -45,6 +45,21 @@ static int _data_type_size[] =
     -1,                // VSS_STREAM
     -1,                // VSS_NA
 };
+
+// Simple UT hash table to map signatures
+// to signals.
+// https://troydhanson.github.io/uthash/userguide.html
+
+// Populated by get_signal_by_signature() when
+// no hits were found in the hash table.
+//
+typedef struct {
+    uint32_t signature;
+    vss_signal_t* signal;
+    UT_hash_handle hh;
+} signal_hash_t;
+
+static signal_hash_t* _signatures = NULL;
 
 static int vsd_data_copy(vsd_data_u* dst,
                          vsd_data_u* src,
@@ -141,6 +156,42 @@ static vsd_data_u* vsd_data(vss_signal_t* sig)
     return &dt->value;
 }
 
+static vss_signal_t* _get_signal_by_signature(uint32_t signature)
+{
+    signal_hash_t* hash = 0;
+    int ind = vss_get_signal_count();
+    vss_signal_t* signal = 0;
+    extern vss_signal_t vss_signal[];
+
+    // Is it already in the hash table?
+    HASH_FIND_INT(_signatures, &signature, hash);
+    if (hash)
+        return hash->signal;
+
+    // Add a new hash.
+    // First do a linear search.
+    while(ind--) {
+        signal = vss_get_signal_by_index(ind);
+        if (vss_get_subtree_signature(signal) == signature)
+            break;
+    }
+    // No hit?
+    if (ind == -1)
+        return 0;
+
+    // Our linear search found a signal. Add it to the hash table
+    hash = (signal_hash_t*) malloc(sizeof(signal_hash_t));
+    if (!hash) {
+        RMC_LOG_FATAL("Could not allocate %d bytes", sizeof(signal_hash_t));
+        exit(255);
+    }
+    RMC_LOG_DEBUG("_get_signal_by_signature(0x%X): Adding signal to hash table for quicker lookup",
+                  signature);
+    hash->signal = signal;
+    hash->signature = signature;
+    HASH_ADD_INT(_signatures, signature, hash);
+    return signal;
+}
 
 // Encode a signal tree under self.
 static int encode_signal(vss_signal_t* sig, uint8_t* buf, int buf_sz, int* len)
@@ -172,13 +223,13 @@ static int encode_signal(vss_signal_t* sig, uint8_t* buf, int buf_sz, int* len)
 
     // We are not a branch, but an actual signal
     // Do we have enough space to encode signal ID?
-    if (buf_sz < sizeof(sig->index))
+    if (buf_sz < sizeof(sig->signature))
         return ENOMEM;
 
-    memcpy(buf, (void*) &(sig->index), sizeof(sig->index));
-    buf += sizeof(sig->index);
-    buf_sz -= sizeof(sig->index);
-    *len += sizeof(sig->index);
+    memcpy(buf, (void*) &(sig->signature), sizeof(sig->signature));
+    buf += sizeof(sig->signature);
+    buf_sz -= sizeof(sig->signature);
+    *len += sizeof(sig->signature);
     sig_val = vsd_data(sig);
 
     // Encode a leaf node.
@@ -262,32 +313,32 @@ static int decode_signal(vsd_context_t* ctx,
                          const uint8_t* buf, int buf_sz,
                          vsd_signal_list_t* res_lst)
 {
-    int index;
+    uint32_t signature;
     vss_signal_t* sig = 0;
 
     while(buf_sz) {
-        // Do we have enough data to decode signal INDEX?
-        if (buf_sz < sizeof(index))
+        // Do we have enough data to decode signal signature?
+        if (buf_sz < sizeof(signature))
             return ENOMEM;
 
-        // Record signal INDEX.
-        index = *((int*) buf);
-        buf += sizeof(index);
-        buf_sz -= sizeof(index);
+        // Extract signal signature.
+        signature = *((uint32_t*) buf);
+        buf += sizeof(signature);
+        buf_sz -= sizeof(signature);
 
         // Locate signal in tree
-        sig = vss_get_signal_by_index(index);
+        sig = _get_signal_by_signature(signature);
 
         // If not found then we have a signal definition mismatch between sender
         // and receiver.
         if (!sig) {
-            RMC_LOG_FATAL("Cannot decode signal index %u.", index);
+            RMC_LOG_FATAL("Cannot decode signal signature 0x%X.", signature);
             exit(255);
         }
 
         // Is this a signal branch?
         if (sig->element_type == VSS_BRANCH) {
-            RMC_LOG_FATAL("Received a branch as a signal. index %u", sig->index);
+            RMC_LOG_FATAL("Received a branch as a signal. signature 0x%X", signature);
             exit(255);
         }
 
@@ -305,9 +356,9 @@ static int decode_signal(vsd_context_t* ctx,
 
             // Do we have enough memory?
             if (buf_sz < _data_type_size[sig->data_type]) {
-                RMC_LOG_ERROR("Could not decode %s signal INDEX %u. Needed %d bytes, %lu bytes available.",
+                RMC_LOG_ERROR("Could not decode %s signal signature 0x%X. Needed %d bytes, %lu bytes available.",
                               vss_data_type_string(sig->data_type),
-                              sig->index,
+                              sig->signature,
                               _data_type_size[sig->data_type],
                               buf_sz);
                 return ENOMEM;
@@ -326,14 +377,14 @@ static int decode_signal(vsd_context_t* ctx,
             vsd_data_u val;
 
             // Copy dynamic length string
-            if (buf_sz < sizeof(uint32_t)) {
+            if (buf_sz < sizeof(uint16_t)) {
                 RMC_LOG_ERROR("Could not decode string length of signal %s. Needed %d bytes, %lu bytes available.",
                               sig->uuid, sizeof(uint32_t), buf_sz);
                 return ENOMEM;
             }
 
             // Grab length
-            val.s.len = *((uint32_t*) buf);
+            val.s.len = *((uint16_t*) buf);
             val.s.allocated = 0;
             buf += sizeof(val.s.len);
             buf_sz -= sizeof(val.s.len);
@@ -354,18 +405,15 @@ static int decode_signal(vsd_context_t* ctx,
         }
 
         default:
-            RMC_LOG_ERROR("Could not decode %s signal INDEX %u. Not supported",
+            RMC_LOG_ERROR("Could not decode %s signal signature 0x%X. Not supported",
                           vss_data_type_string(sig->data_type),
-                          sig->index);
+                          sig->signature);
             exit(255);
         }
     }
 
     return 0;
 }
-
-
-
 
 int vsd_set_user_data(vsd_context_t* ctx, void* user_data)
 {
@@ -390,9 +438,9 @@ int vsd_subscribe(vsd_context_t* ctx,
     return 0;
 }
 
-static int _compare_subscribers(vsd_subscriber_cb_t a,
-                                vsd_subscriber_cb_t b,
-                                void* user_data)
+static int _subscriber_compare(vsd_subscriber_cb_t a,
+                               vsd_subscriber_cb_t b,
+                               void* user_data)
 {
     return a == b;
 }
@@ -405,7 +453,7 @@ int vsd_unsubscribe(vsd_context_t* ctx,
 
     node = vsd_subscriber_list_find_node(vsd_subscribers(sig),
                                          callback,
-                                         _compare_subscribers, 0);
+                                         _subscriber_compare, 0);
 
     if (!node)
         return ESRCH; // No such subscriber.
@@ -421,6 +469,7 @@ int vsd_publish(vss_signal_t* sig)
     uint8_t buf[0xFF00];
     int len = 0;
     int res = 0;
+
     res = encode_signal(sig, buf, sizeof(buf), &len);
     if (res) {
         RMC_LOG_ERROR("Could not publish signal %s: %s",
@@ -428,61 +477,55 @@ int vsd_publish(vss_signal_t* sig)
         return res;
     }
 
-    RMC_LOG_INFO("Sending signal %s / %s: %d bytes payload",
-                 vsd_signal_to_path_static(sig), sig->uuid, len);
+    RMC_LOG_INFO("Sending signal%s: %d bytes payload",
+                 sig->uuid, len);
 
-    // Initialize signature if not already done.
-    // We will use the four first bytes of the
-    // SHA256 VSS spec signature
-    if (!_vss_signature) {
-        char buf[5];
-        const char* sha = vss_get_sha256_signature();
-        strncpy(buf, sha, 4);
-        _vss_signature = strtoul(buf, 0, 0);
-    }
-
-    return dstc_vsd_signal_transmit(sig->index, _vss_signature, DSTC_DYNAMIC_ARG(buf, len));
+    // Use the four first bytes of the subtree signature for the signal (or signal tree)
+    // we are transmitting. If the receiver's corresponding signautre
+    // does not match it means that the specs used for the subtree differ between
+    // the pubhlisher and the receiver.
+    return dstc_vsd_signal_transmit(sig->signature, DSTC_DYNAMIC_ARG(buf, len));
 }
 
 
 static uint8_t _invoke_subscriber(vsd_subscriber_node_t* node, void* user_data)
 {
-    vsd_signal_list_t* res_lst = (vsd_signal_list_t*) user_data;
+    vsd_signal_list_t *res_lst = (vsd_signal_list_t*) user_data;
 
     (*node->data)(0, res_lst);
     return 1;
 }
 
 
+
+
 // Receive and deceode incoming signal, followed by invoking all callbacks.
 // This function is invoked by DSTC as a result of a remote node
 // calling vsd_transmit() through dstc_publish_signal() above.
-void vsd_signal_transmit(int index, uint32_t vss_signature, dstc_dynamic_data_t dynarg)
+void vsd_signal_transmit(uint32_t vss_signature, dstc_dynamic_data_t dynarg)
 {
     int res = 0;
     vss_signal_t* current = 0;
     vss_signal_t* sig = 0;
     vsd_signal_list_t res_lst;
 
-    // Initialize signature if not already done.
-    // We will use the four first bytes of the
-    // SHA256 VSS spec signature
-    if (!_vss_signature) {
-        char buf[5];
-        strncpy(buf, vss_get_sha256_signature(), 4);
-        _vss_signature = strtoul(buf, 0, 0);
-    }
-
-    if (vss_signature != _vss_signature) {
-        RMC_LOG_FATAL("VSS signature mismatch on signal specification. My signature: %X. Their signature: %X");
-        exit(255);
-    }
-
-    sig = vss_get_signal_by_index(index);
-    if (res) {
-        RMC_LOG_ERROR("Could not decode incoming signal %d: %s",
-                      sig->uuid, strerror(res));
+    sig = _get_signal_by_signature(vss_signature);
+    if (!sig) {
+        RMC_LOG_ERROR("Could not resovle index %d to a signal\n",
+                      sig, strerror(res));
         return;
+    }
+
+
+    // Check that we have a signature match on the given node in the tree.
+    // We use only the first four bytes of the sha256 code since
+    // that will very, very likely be enough to detect signal spec
+    // mismatch.
+    if (sig->signature != vss_signature) {
+        RMC_LOG_FATAL("VSS signature mismatch. My signature: 0x%X. Their signature: 0x%X",
+                      sig->signature, vss_signature);
+        RMC_LOG_FATAL("Offending signal UUID: %s\n", sig->uuid);
+        exit(255);
     }
 
     vsd_signal_list_init(&res_lst, 0, 0, 0);
@@ -490,7 +533,8 @@ void vsd_signal_transmit(int index, uint32_t vss_signature, dstc_dynamic_data_t 
     res = decode_signal(0, dynarg.data, dynarg.length, &res_lst);
 
     if (res) {
-        RMC_LOG_ERROR("Could not decode incoming signal tree: %s", strerror(res));
+        RMC_LOG_ERROR("Could not decode incoming signal %s tree: %s",
+                      sig->uuid, strerror(res));
         return;
     }
 
@@ -500,7 +544,6 @@ void vsd_signal_transmit(int index, uint32_t vss_signature, dstc_dynamic_data_t 
     while(current) {
         vsd_subscriber_list_for_each(vsd_subscribers(current),
                                      _invoke_subscriber, &res_lst);
-
         current = current->parent;
     }
     vsd_signal_list_empty(&res_lst);

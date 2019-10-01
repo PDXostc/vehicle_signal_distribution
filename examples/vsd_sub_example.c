@@ -13,8 +13,9 @@
 
 int exit_flag = 0;
 
-void dump_desc(vss_signal_t* elem)
+uint8_t dump_desc(vsd_signal_node_t* node, void* _ud)
 {
+    vss_signal_t* elem = node->data;
     vsd_data_u val;
 
     if (elem->element_type == VSS_BRANCH) {
@@ -72,7 +73,7 @@ void dump_desc(vss_signal_t* elem)
     default:
         printf("[unsupported]\n");
     }
-    return;
+    return 1;
 }
 
 static uint8_t _dump_description(vsd_signal_node_t* node, void* _ud) {
@@ -83,8 +84,7 @@ static uint8_t _dump_description(vsd_signal_node_t* node, void* _ud) {
 void signal_sub(vsd_context_t* ctx,vsd_signal_list_t* list)
 {
     puts("Got signal");
-    vsd_signal_list_for_each(list, _dump_description, 0);
-
+    vsd_signal_list_for_each(list, dump_desc, 0);
     puts("----\n");
     exit_flag = 1;
 
