@@ -161,7 +161,6 @@ static vss_signal_t* _get_signal_by_signature(uint32_t signature)
     signal_hash_t* hash = 0;
     int ind = vss_get_signal_count();
     vss_signal_t* signal = 0;
-    extern vss_signal_t vss_signal[];
 
     // Is it already in the hash table?
     HASH_FIND_INT(_signatures, &signature, hash);
