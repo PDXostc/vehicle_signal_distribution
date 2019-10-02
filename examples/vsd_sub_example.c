@@ -76,11 +76,6 @@ uint8_t dump_desc(vsd_signal_node_t* node, void* _ud)
     return 1;
 }
 
-static uint8_t _dump_description(vsd_signal_node_t* node, void* _ud) {
-    dump_desc(node->data);
-    return 1;
-}
-
 void signal_sub(vsd_context_t* ctx,vsd_signal_list_t* list)
 {
     puts("Got signal");
