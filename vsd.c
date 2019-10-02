@@ -7,7 +7,7 @@
 //
 // Common signal functions
 //
-#include <vehicle_signal_distribution.h>
+#include "vehicle_signal_distribution.h"
 #include <memory.h>
 #include <string.h>
 #include <errno.h>
