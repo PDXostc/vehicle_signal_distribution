@@ -17,9 +17,9 @@ uint8_t dump_desc(vsd_signal_node_t* node, void* _ud)
 {
     vss_signal_t* elem = node->data;
     vsd_data_u val;
-
+    char buf[1024];
     if (elem->element_type == VSS_BRANCH) {
-        printf("FATAL: Tried to print branch: %s", vsd_signal_to_path_static(elem));
+        printf("FATAL: Tried to print branch: %s", vss_get_signal_path(elem, buf, sizeof(buf)));
         exit(255);
     }
 
