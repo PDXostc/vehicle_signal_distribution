@@ -145,11 +145,6 @@ extern int vsd_set_value_by_path_convert(vsd_context_t* context, char* path, cha
 extern int vsd_set_value_by_index_convert(vsd_context_t* context, int index, char* value);
 
 
-// Install the full path to sig into a static buf and return it./
-// If the path is longer than 1024 bytes, the string
-// "[signal path too long]" will be returned.
-extern const char* vsd_signal_to_path_static(struct _vss_signal_t* sig);
-
 // Convert the provided string into a signal data element.
 // The string is converted according to the type specified in 'type'.
 // If conversion cannot be done, a default value is provided.

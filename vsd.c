@@ -550,19 +550,6 @@ void vsd_signal_transmit(uint32_t vss_signature, dstc_dynamic_data_t dynarg)
 
 
 
-const char* vsd_signal_to_path_static(vss_signal_t* sig)
-{
-//    static char res[1024];
-
-    // FIXME: vss_get_signal_path_is_missing from libvss.so
-//    if (vss_get_signal_path(sig, res, sizeof(res)) != 0)
-//        return "[signal path too long]";
-
-//    return res;
-    return "not implemented";
-}
-
-
 // result->s is *not* owned by the caller. Use vss_data_copy()
 // if you need a copy.
 int vsd_get_value(vss_signal_t* sig,
