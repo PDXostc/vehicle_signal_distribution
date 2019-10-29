@@ -99,6 +99,7 @@ int main(int argc, char* argv[])
         printf("Cannot publish signal %s %s\n", argv[2], strerror(res));
         exit(255);
     }
-    dstc_process_events(0);
+    while(dstc_process_events(500) != ETIME);
+    puts("Exiting");
     exit(0);
 }
