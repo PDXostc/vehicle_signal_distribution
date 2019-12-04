@@ -24,13 +24,13 @@ nomacro:
 	$(MAKE) -C examples nomacro
 
 $(TARGET_SO): $(SHARED_OBJ)
-	$(CC) --shared $(CFLAGSLIST) $^ $(LDFLAGS) -o $@
+	$(LD) --shared $^ $(LDFLAGS) -o $@
 
 # Recompile everything if dstc.h changes
 $(SHARED_OBJ): $(INCLUDE)
 
 .c.o:
-	$(CC) -c $(CFLAGSLIST) $<
+	$(CC) -c $(CFLAGS) $<
 
 clean:
 	rm -f   *~ $(SHARED_OBJ) $(TARGET_SO)
